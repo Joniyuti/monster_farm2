@@ -1,0 +1,3834 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>モンスターファーム2 2Dリメイク</title>
+<style>
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --bg-outer: #04070e;
+    --bg-panel: rgba(13, 21, 36, 0.96);
+    --bg-card: rgba(23, 36, 58, 0.94);
+    --gold: #f6c453;
+    --gold-dim: #926d1e;
+    --cyan: #5eead4;
+    --rose: #fb7185;
+    --amber: #fb923c;
+    --lime: #a3e635;
+    --text: #f8fafc;
+    --muted: #b6c7de;
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100dvh;
+    background: var(--bg-outer);
+    color: var(--text);
+    font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", "Noto Sans JP", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: geometricPrecision;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 9:16 portrait stage respecting mobile Chrome/Safari safe areas and 43" monitors */
+  #mf2-frame {
+    position: relative;
+    aspect-ratio: 9 / 16;
+    width: min(100vw, calc((100dvh - var(--safe-top) - var(--safe-bottom)) * 9 / 16));
+    height: min(calc(100dvh - var(--safe-top) - var(--safe-bottom)), calc(100vw * 16 / 9));
+    max-height: 100dvh;
+    margin-top: var(--safe-top);
+    margin-bottom: var(--safe-bottom);
+    background: #080f1d;
+    border: 2px solid #355078;
+    box-shadow: 0 0 56px rgba(0, 0, 0, 0.95);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    container-type: inline-size;
+  }
+
+  /* Top HUD & PC Keyboard Legend */
+  #top-bar {
+    flex: 0 0 auto;
+    background: linear-gradient(180deg, #1a2c48 0%, #0d1626 100%);
+    border-bottom: 2px solid var(--gold-dim);
+    padding: clamp(4px, 1.1cqw, 8px) clamp(7px, 1.8cqw, 14px);
+    display: flex;
+    flex-direction: column;
+    gap: clamp(3px, 0.7cqw, 5px);
+    z-index: 30;
+  }
+
+  .hud-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    font-size: clamp(10px, 2.55cqw, 14.5px);
+    font-weight: 800;
+  }
+
+  .hud-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px clamp(5px, 1.3cqw, 9px);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.09);
+    border: 1px solid rgba(246, 196, 83, 0.42);
+    white-space: nowrap;
+  }
+
+  #pc-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: clamp(4px, 1cqw, 8px);
+    font-size: clamp(9px, 2.2cqw, 12.5px);
+    color: var(--muted);
+    background: rgba(0, 0, 0, 0.42);
+    padding: 3px clamp(5px, 1.3cqw, 8px);
+    border-radius: 5px;
+  }
+
+  .ktag {
+    display: inline-block;
+    padding: 0 4px;
+    background: #253857;
+    border: 1px solid #6b89b8;
+    border-radius: 3px;
+    color: var(--gold);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-weight: 700;
+    margin-right: 2px;
+  }
+
+  /* Main Screen Viewport */
+  #stage-viewport {
+    position: relative;
+    flex: 1 1 auto;
+    width: 100%;
+    overflow: hidden;
+    background: #091221;
+  }
+
+  canvas.crisp-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .mf-panel {
+    background: var(--bg-panel);
+    border: 2px solid var(--gold);
+    box-shadow: inset 0 0 0 1.5px #223757, 0 6px 20px rgba(0, 0, 0, 0.78);
+    border-radius: 8px;
+    padding: clamp(6px, 1.6cqw, 11px);
+  }
+
+  .mf-card {
+    background: var(--bg-card);
+    border: 1.5px solid rgba(246, 196, 83, 0.36);
+    border-radius: 6px;
+    padding: clamp(6px, 1.5cqw, 10px);
+    font-size: clamp(10px, 2.55cqw, 14px);
+  }
+
+  .btn {
+    background: linear-gradient(180deg, #284168 0%, #15243d 100%);
+    color: var(--text);
+    border: 1.5px solid var(--gold-dim);
+    border-radius: 6px;
+    padding: clamp(5px, 1.3cqw, 9px) clamp(7px, 1.8cqw, 12px);
+    font-size: clamp(10.5px, 2.65cqw, 14.5px);
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 0.06s, border-color 0.12s, background 0.12s;
+  }
+
+  .btn:hover:not(:disabled) {
+    border-color: var(--gold);
+  }
+
+  .btn:active:not(:disabled), .btn.is-active {
+    transform: scale(0.97);
+    background: linear-gradient(180deg, #745114 0%, #422d09 100%);
+    border-color: #ffe38e;
+    color: #fff9db;
+  }
+
+  .btn:disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+  }
+
+  .btn-gold {
+    background: linear-gradient(180deg, #8f6316 0%, #4e3508 100%);
+    border-color: var(--gold);
+    color: #fff6cf;
+  }
+
+  .btn-rose {
+    background: linear-gradient(180deg, #881d3d 0%, #4e0e22 100%);
+    border-color: var(--rose);
+    color: #ffe4e6;
+  }
+
+  .btn-cyan {
+    background: linear-gradient(180deg, #0f5c6e 0%, #093542 100%);
+    border-color: var(--cyan);
+    color: #e0fdfa;
+  }
+
+  .btn-sm {
+    padding: clamp(4px, 1.05cqw, 7px) clamp(6px, 1.5cqw, 10px);
+    font-size: clamp(9.5px, 2.4cqw, 13.5px);
+  }
+
+  .screen-view {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    padding: clamp(6px, 1.6cqw, 11px);
+    gap: clamp(5px, 1.3cqw, 8px);
+    background: rgba(6, 11, 20, 0.95);
+    z-index: 20;
+    overflow-y: auto;
+  }
+
+  .screen-view.active {
+    display: flex;
+  }
+
+  /* Toast Banner (replaces browser alert/confirm safely) */
+  #toast-banner {
+    position: absolute;
+    top: 8px;
+    left: 10px;
+    right: 10px;
+    z-index: 60;
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 11px;
+    border-radius: 7px;
+    background: rgba(17, 24, 39, 0.97);
+    border: 1.5px solid var(--gold);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.85);
+    font-size: clamp(10.5px, 2.6cqw, 14px);
+    font-weight: 800;
+    color: #fef9c3;
+  }
+
+  #toast-banner.active {
+    display: flex;
+  }
+
+  /* Title Screen */
+  #view-title {
+    background: radial-gradient(circle at 50% 20%, #1e40af 0%, #0f294a 48%, #060b14 100%);
+    justify-content: space-between;
+    align-items: center;
+    text-align: center;
+  }
+
+  .title-sub {
+    font-size: clamp(9.5px, 2.35cqw, 13px);
+    letter-spacing: 1.5px;
+    color: var(--cyan);
+    font-weight: 800;
+  }
+
+  .title-main {
+    font-size: clamp(18px, 4.7cqw, 27px);
+    font-weight: 900;
+    line-height: 1.22;
+    margin: 2px 0;
+    background: linear-gradient(180deg, #fffbe6 0%, #f6c453 55%, #b87914 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Number Birth Screen */
+  .code-display {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: clamp(17px, 4.4cqw, 25px);
+    font-weight: 900;
+    letter-spacing: 3px;
+    color: #fef08a;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1.5px solid var(--gold);
+    border-radius: 6px;
+    padding: 5px 10px;
+    text-align: center;
+  }
+
+  .numpad-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: clamp(4px, 1.1cqw, 7px);
+  }
+
+  .num-btn {
+    padding: clamp(6px, 1.6cqw, 10px) 0;
+    font-size: clamp(13px, 3.4cqw, 18px);
+    font-weight: 900;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  /* Ranch & Care Screen */
+  #view-ranch {
+    justify-content: space-between;
+  }
+
+  #ranch-canvas {
+    width: 100%;
+    height: clamp(150px, 39cqw, 235px);
+    flex: 0 0 auto;
+    border-radius: 8px;
+    border: 1.5px solid rgba(246, 196, 83, 0.7);
+    cursor: pointer;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 5px 8px;
+    font-size: clamp(9.5px, 2.35cqw, 13px);
+  }
+
+  .mf2-stat-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: rgba(9, 15, 28, 0.72);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 4px;
+    padding: 3px 5px;
+  }
+
+  .mf2-stat-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 800;
+    line-height: 1.15;
+  }
+
+  .mf2-rank-tag {
+    font-size: clamp(8.5px, 2.05cqw, 11px);
+    padding: 0 4px;
+    border-radius: 3px;
+    background: rgba(246, 196, 83, 0.16);
+    border: 1px solid rgba(246, 196, 83, 0.45);
+    color: #fde68a;
+    margin-left: 3px;
+  }
+
+  .mf2-h-gauge {
+    position: relative;
+    width: 100%;
+    height: 8px;
+    background: #0d1526;
+    border: 1px solid #475569;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .mf2-h-fill {
+    height: 100%;
+    transition: width 0.22s ease;
+  }
+
+  .mf2-h-ticks {
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      to right,
+      transparent 0%,
+      transparent calc(20% - 1px),
+      rgba(9, 13, 22, 0.65) calc(20% - 1px),
+      rgba(9, 13, 22, 0.65) 20%
+    );
+    pointer-events: none;
+  }
+
+  .bar-track {
+    width: 100%;
+    height: 6px;
+    background: #1a273d;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 2px;
+  }
+
+  .bar-fill {
+    height: 100%;
+    transition: width 0.2s;
+  }
+
+  .action-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+  }
+
+  .action-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+  }
+
+  .move-display-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+  }
+
+  .move-row-item {
+    border-radius: 5px;
+    padding: 4px 6px;
+    font-size: clamp(9.5px, 2.25cqw, 12.5px);
+    line-height: 1.25;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    background: rgba(15, 23, 42, 0.72);
+    color: var(--muted);
+  }
+
+  .move-row-item.is-focused {
+    background: linear-gradient(180deg, rgba(146, 109, 30, 0.55), rgba(66, 45, 9, 0.85));
+    border-color: var(--gold);
+    color: #fffbe6;
+    font-weight: 800;
+    box-shadow: 0 0 0 1px rgba(246, 196, 83, 0.45);
+  }
+
+  /* Battle Screen */
+  #view-battle {
+    justify-content: space-between;
+  }
+
+  #battle-canvas {
+    width: 100%;
+    height: clamp(160px, 41cqw, 245px);
+    flex: 0 0 auto;
+    border-radius: 8px;
+    border: 1.5px solid rgba(246, 196, 83, 0.75);
+  }
+
+  .guts-bar-outer {
+    width: 100%;
+    height: 10px;
+    background: #172236;
+    border: 1px solid #47638f;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+
+  .guts-bar-inner {
+    height: 100%;
+    background: linear-gradient(90deg, #f59e0b, #fef08a);
+    transition: width 0.08s linear;
+  }
+
+  #battle-log {
+    height: clamp(50px, 12cqw, 78px);
+    overflow-y: auto;
+    font-size: clamp(10px, 2.45cqw, 13.5px);
+    line-height: 1.35;
+    padding: 5px 8px;
+  }
+
+  /* VN Dialogue Overlay */
+  #vn-box {
+    position: absolute;
+    left: clamp(6px, 1.5cqw, 11px);
+    right: clamp(6px, 1.5cqw, 11px);
+    bottom: clamp(6px, 1.5cqw, 11px);
+    z-index: 45;
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  #vn-box.active {
+    display: flex;
+  }
+
+  .vn-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .vn-speaker {
+    font-size: clamp(11px, 2.8cqw, 15.5px);
+    font-weight: 900;
+    color: var(--gold);
+  }
+
+  .vn-body {
+    display: flex;
+    align-items: flex-end;
+    gap: clamp(7px, 1.7cqw, 11px);
+  }
+
+  #vn-portrait {
+    flex: 0 0 clamp(74px, 19.5cqw, 108px);
+    height: clamp(86px, 23cqw, 126px);
+    border-radius: 6px;
+    border: 1.5px solid var(--gold);
+  }
+
+  #vn-line {
+    flex: 1 1 auto;
+    font-size: clamp(11px, 2.8cqw, 15px);
+    line-height: 1.46;
+    min-height: 60px;
+  }
+
+  /* Context-Sensitive Action Dock (Only active buttons shown per screen) */
+  #context-dock {
+    flex: 0 0 auto;
+    background: linear-gradient(180deg, #0d1626 0%, #070c15 100%);
+    border-top: 2px solid var(--gold-dim);
+    padding: clamp(5px, 1.3cqw, 9px) clamp(7px, 1.7cqw, 12px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    z-index: 35;
+  }
+</style>
+</head>
+<body>
+<div id="mf2-frame">
+  <!-- TOP HUD & CONTEXT PC KEY GUIDE -->
+  <div id="top-bar">
+    <div class="hud-row">
+      <span id="hud-date" class="hud-pill" style="color:var(--gold);">📅 1年目 1月 1週</span>
+      <span id="hud-rank" class="hud-pill" style="color:var(--cyan);">🏆 Eランク</span>
+      <span id="hud-gold" class="hud-pill" style="color:#fef08a;">💰 2500G</span>
+      <button id="btn-audio" type="button" class="btn btn-sm" style="padding:2px 7px;">🔊 ON</button>
+    </div>
+    <div id="pc-legend"></div>
+  </div>
+
+  <!-- MAIN SCREEN VIEWPORT -->
+  <div id="stage-viewport">
+    <!-- Toast Notice Box -->
+    <div id="toast-banner" role="status" aria-live="polite">
+      <span id="toast-text"></span>
+      <button id="toast-close" type="button" class="btn btn-sm" style="padding:2px 7px;">OK</button>
+    </div>
+
+    <!-- 1. TITLE VIEW (Starts directly into Ranch or Loads Save; Birth is inside Shrine) -->
+    <div id="view-title" class="screen-view active">
+      <div>
+        <div class="title-sub">MONSTER FARM 2 — 2D REMAKE EDITION</div>
+        <div class="title-main">モンスターファーム2</div>
+        <div style="font-size:clamp(12px,3.1cqw,16.5px);font-weight:800;color:#fde68a;">〜牧場育成・数字神殿・合体・冬眠・距離ガッツバトル〜</div>
+      </div>
+
+      <canvas id="title-banner" class="crisp-canvas" style="width:100%;height:190px;flex:0 0 190px;border-radius:8px;border:1.5px solid var(--gold);"></canvas>
+
+      <div class="mf-panel" style="width:100%;text-align:left;font-size:clamp(10px,2.55cqw,13.5px);line-height:1.45;">
+        <div style="color:var(--gold);font-weight:900;">◆ モンスターファーム2 本格2Dリメイク</div>
+        ・牧場から<b>数字の神殿</b>へ行き、数字ボタンで新たなモンスターを誕生！<br>
+        ・<b>冬眠（フリーズ）</b>で複数体を管理し、<b>合体</b>で能力・技・隠し味を引き継ぎ！<br>
+        ・6能力の<b>横バーゲージ</b>・<b>ほめる／しかる</b>・修行・冒険・4段階距離＆ガッツ戦！
+      </div>
+
+      <div style="width:100%;display:flex;flex-direction:column;gap:5px;">
+        <button id="btn-new-game" type="button" class="btn btn-gold" style="font-size:clamp(12.5px,3.2cqw,16.5px);padding:9px;">▶ 牧場生活を始める（Enter）</button>
+        <div style="display:flex;gap:5px;">
+          <button id="btn-title-load" type="button" class="btn" style="flex:1;">📂 続きから再開</button>
+          <button id="btn-title-save-mgr" type="button" class="btn btn-rose" style="flex:1;">🗑 セーブ管理/削除</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. SHRINE / NUMBER-PAD BIRTH VIEW (Inside Ranch/Town Loop) -->
+    <div id="view-birth" class="screen-view">
+      <div class="mf-panel" style="padding:6px 10px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:clamp(11.5px,2.9cqw,15.5px);font-weight:900;color:var(--gold);">🏛 数字の神殿：モンスター再生</span>
+        <button id="btn-birth-back" type="button" class="btn btn-sm">← 牧場へ (Esc)</button>
+      </div>
+
+      <canvas id="birth-canvas" class="crisp-canvas" style="width:100%;height:136px;flex:0 0 136px;border-radius:8px;border:1.5px solid var(--cyan);"></canvas>
+
+      <div class="mf-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <span style="font-weight:800;color:var(--cyan);">再生ナンバー（最大8桁）</span>
+          <span id="birth-preview-species" style="font-weight:900;color:#fef08a;">予想：スエゾー系</span>
+        </div>
+        <div id="birth-code-box" class="code-display">19990722</div>
+      </div>
+
+      <div class="numpad-grid">
+        <button type="button" class="btn num-btn" data-digit="1">1</button>
+        <button type="button" class="btn num-btn" data-digit="2">2</button>
+        <button type="button" class="btn num-btn" data-digit="3">3</button>
+        <button type="button" class="btn num-btn" data-digit="4">4</button>
+        <button type="button" class="btn num-btn" data-digit="5">5</button>
+        <button type="button" class="btn num-btn" data-digit="6">6</button>
+        <button type="button" class="btn num-btn" data-digit="7">7</button>
+        <button type="button" class="btn num-btn" data-digit="8">8</button>
+        <button type="button" class="btn num-btn" data-digit="9">9</button>
+        <button type="button" class="btn num-btn" data-digit="0">0</button>
+      </div>
+
+      <div class="action-grid-3">
+        <button id="btn-digit-del" type="button" class="btn btn-sm">⌫ 1桁消す</button>
+        <button id="btn-digit-clear" type="button" class="btn btn-sm">🧹 クリア</button>
+        <button id="btn-digit-rand" type="button" class="btn btn-sm btn-cyan">🎲 ランダム数字</button>
+      </div>
+
+      <button id="btn-summon-monster" type="button" class="btn btn-gold" style="padding:9px;font-size:clamp(12.5px,3.1cqw,16px);">✨ この数字でモンスターを誕生させる！（Enter）</button>
+    </div>
+
+    <!-- 2B. DEDICATED SHRINE BIRTH CEREMONY VIEW -->
+    <div id="view-ceremony" class="screen-view" style="justify-content:space-between;background:radial-gradient(circle at 50% 35%, #1e1b4b 0%, #090d1a 75%);">
+      <div class="mf-panel" style="padding:6px 10px;display:flex;justify-content:space-between;align-items:center;">
+        <span id="ceremony-stage-label" style="font-size:clamp(11px,2.85cqw,15px);font-weight:900;color:var(--gold);">✦ 円盤共鳴フェーズ</span>
+        <button id="btn-ceremony-skip" type="button" class="btn btn-sm">⏭ スキップ</button>
+      </div>
+
+      <canvas id="ceremony-canvas" class="crisp-canvas" style="width:100%;height:clamp(260px,68cqw,410px);flex:1 1 auto;border-radius:10px;border:1.5px solid var(--gold);"></canvas>
+
+      <div id="ceremony-banner" class="mf-panel" style="display:flex;flex-direction:column;gap:6px;">
+        <div id="ceremony-caption" style="font-size:clamp(11px,2.7cqw,14.5px);font-weight:800;color:#fef08a;line-height:1.45;">
+          古代の円盤が静かに脈動し、数字の力が満ちていきます……
+        </div>
+        <button id="btn-ceremony-enter-ranch" type="button" class="btn btn-gold" style="display:none;padding:9px;font-size:clamp(12px,3.05cqw,16px);">
+          🌿 誕生したモンスターと牧場へ行く (Enter / Space)
+        </button>
+      </div>
+    </div>
+
+    <!-- 3. RANCH & CARE VIEW -->
+    <div id="view-ranch" class="screen-view">
+      <div class="mf-panel" style="padding:5px 9px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <span id="ranch-m-name" style="font-size:clamp(12px,3.1cqw,16px);font-weight:900;color:#fef08a;">牧場：空き</span>
+          <span id="ranch-m-sub" style="font-size:clamp(9.5px,2.35cqw,13px);color:var(--cyan);font-weight:700;">（モンスター未配置）</span>
+          <span id="ranch-freeze-count" style="font-size:clamp(9px,2.2cqw,12px);color:#fde68a;font-weight:800;">[冬眠:0/10]</span>
+        </div>
+        <span id="ranch-m-life" style="font-size:clamp(10px,2.5cqw,13.5px);font-weight:800;color:#86efac;">経過: --</span>
+      </div>
+
+      <canvas id="ranch-canvas" class="crisp-canvas"></canvas>
+
+      <!-- MF2 Style Horizontal Bar Status Panel -->
+      <div class="mf-card" style="padding:5px 7px;">
+        <div id="mf2-stats-bars" class="stats-grid"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:5px;font-size:clamp(9px,2.2cqw,12.5px);">
+          <div>
+            疲労: <b id="st-fat">--</b>% ｜ 忠誠: <b id="st-loy">--</b>
+            <div class="bar-track"><div id="bar-fat" class="bar-fill" style="width:0%;background:#fb7185;"></div></div>
+          </div>
+          <div>
+            ストレス: <b id="st-str">--</b>% ｜ 善悪: <b id="st-align">--</b>
+            <div class="bar-track"><div id="bar-str" class="bar-fill" style="width:0%;background:#f59e0b;"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Petting, Praise, Scold & Feeding -->
+      <div class="action-grid-3">
+        <button id="btn-pet" type="button" class="btn btn-sm btn-cyan">✋ なでる (C)</button>
+        <button id="btn-praise" type="button" class="btn btn-sm">🌟 ほめる</button>
+        <button id="btn-scold" type="button" class="btn btn-sm btn-rose">💢 しかる</button>
+      </div>
+
+      <div class="action-grid-3">
+        <button id="btn-feed-menu" type="button" class="btn btn-sm">🍖 エサを選ぶ</button>
+        <button id="btn-rest" type="button" class="btn btn-sm">💤 休養(1週)</button>
+        <button id="btn-shrine" type="button" class="btn btn-sm btn-gold">🏛 数字の神殿</button>
+      </div>
+
+      <!-- 6-Stat Individual Training & Intensity Toggle -->
+      <div class="mf-card" style="padding:5px 7px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:4px;">
+          <span style="font-size:clamp(9.5px,2.35cqw,13px);font-weight:900;color:var(--gold);">🏋 6能力別トレーニング（1週）</span>
+          <div style="display:flex;gap:3px;">
+            <button id="btn-mode-heavy" type="button" class="btn btn-sm btn-gold is-active" style="padding:2px 6px;">重トレ</button>
+            <button id="btn-mode-light" type="button" class="btn btn-sm" style="padding:2px 6px;">軽トレ</button>
+          </div>
+        </div>
+        <div class="action-grid-3">
+          <button type="button" class="btn btn-sm btn-tr-stat" data-stat="hp">💚 ライフ練</button>
+          <button type="button" class="btn btn-sm btn-tr-stat" data-stat="pow">⚔ ちから練</button>
+          <button type="button" class="btn btn-sm btn-tr-stat" data-stat="intStat">🔮 かしこさ練</button>
+          <button type="button" class="btn btn-sm btn-tr-stat" data-stat="hit">🎯 命中練</button>
+          <button type="button" class="btn btn-sm btn-tr-stat" data-stat="spd">⚡ 回避練</button>
+          <button type="button" class="btn btn-sm btn-tr-stat" data-stat="def">🛡 丈夫さ練</button>
+        </div>
+      </div>
+
+      <div class="action-grid-3">
+        <button id="btn-errantry" type="button" class="btn btn-sm">⚔️ 修行地へ</button>
+        <button id="btn-adventure" type="button" class="btn btn-sm">🗺️ 冒険(探索)</button>
+        <button id="btn-tournament" type="button" class="btn btn-sm btn-rose">🏆 公式大会</button>
+      </div>
+
+      <div class="action-grid-3">
+        <button id="btn-freeze-menu" type="button" class="btn btn-sm btn-cyan">❄ 冬眠管理</button>
+        <button id="btn-combine-menu" type="button" class="btn btn-sm btn-gold">🧬 モンスター合体</button>
+        <button id="btn-save-menu" type="button" class="btn btn-sm">💾 セーブ/削除</button>
+      </div>
+    </div>
+
+    <!-- 3B. SUBACTION VIEW (Feed / Errantry / Freeze / Combine) -->
+    <div id="view-subaction" class="screen-view">
+      <div class="mf-panel" style="padding:6px 10px;display:flex;justify-content:space-between;align-items:center;">
+        <span id="subaction-title" style="font-size:clamp(11.5px,2.9cqw,15.5px);font-weight:900;color:var(--gold);">メニュー</span>
+        <button id="btn-subaction-close" type="button" class="btn btn-sm">← 牧場へ (Esc)</button>
+      </div>
+      <div id="subaction-list" style="display:flex;flex-direction:column;gap:5px;overflow-y:auto;"></div>
+    </div>
+
+    <!-- 4. BATTLE VIEW -->
+    <div id="view-battle" class="screen-view">
+      <div class="mf-panel" style="padding:5px 9px;display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:clamp(10px,2.55cqw,13.5px);font-weight:900;">
+        <span id="b-header-match" style="color:var(--gold);">🏆 Eランク公式戦</span>
+        <span id="b-header-range" style="color:var(--cyan);">距離: 近(2)</span>
+        <button id="btn-b-surrender" type="button" class="btn btn-sm btn-rose" style="padding:3px 8px;">🏳 ギブアップ</button>
+      </div>
+
+      <canvas id="battle-canvas" class="crisp-canvas"></canvas>
+
+      <div class="mf-card" style="padding:5px 8px;">
+        <div style="display:flex;justify-content:space-between;font-size:clamp(9.5px,2.4cqw,13px);font-weight:800;margin-bottom:2px;">
+          <span id="b-my-hp-txt" style="color:#86efac;">自軍 HP: --</span>
+          <span id="b-guts-txt" style="color:#fde047;">ガッツ: 0/100</span>
+          <span id="b-en-hp-txt" style="color:#fda4af;">相手 HP: --</span>
+        </div>
+        <div class="guts-bar-outer">
+          <div id="b-guts-bar" class="guts-bar-inner" style="width:0%;"></div>
+        </div>
+      </div>
+
+      <div id="battle-log" class="mf-panel"></div>
+
+      <!-- Center battle movement bar (single set: Left=Retreat, Right=Advance) + Non-button focused move list -->
+      <div class="mf-card" style="padding:5px 7px;">
+        <div class="action-grid-2" style="margin-bottom:5px;">
+          <button id="btn-b-retreat" type="button" class="btn btn-sm">← 後退 [A]</button>
+          <button id="btn-b-advance" type="button" class="btn btn-sm btn-cyan">接近 → [D]</button>
+        </div>
+        <div id="b-move-list" class="move-display-grid"></div>
+      </div>
+    </div>
+
+    <!-- 5. SAVE / DELETE MODAL VIEW -->
+    <div id="view-system" class="screen-view">
+      <div class="mf-panel" style="padding:6px 10px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:clamp(11.5px,2.9cqw,15.5px);font-weight:900;color:var(--gold);">💾 セーブ・データ管理</span>
+        <button id="btn-sys-close" type="button" class="btn btn-sm">✕ 戻る (Esc)</button>
+      </div>
+
+      <div id="sys-status-card" class="mf-card"></div>
+
+      <button id="btn-do-save" type="button" class="btn btn-gold">💾 現在の育成データ＆冬眠枠をセーブ</button>
+      <button id="btn-do-load" type="button" class="btn">📂 セーブデータをロード</button>
+      <button id="btn-do-delete" type="button" class="btn btn-rose">🗑 セーブデータを削除</button>
+    </div>
+
+    <!-- VISUAL NOVEL DIALOGUE BOX -->
+    <div id="vn-box" class="mf-panel">
+      <div class="vn-top">
+        <span id="vn-speaker" class="vn-speaker">コルト</span>
+        <span id="vn-badge" style="font-size:clamp(9px,2.2cqw,12.5px);color:var(--cyan);font-weight:800;">牧場アドバイス</span>
+      </div>
+      <div class="vn-body">
+        <canvas id="vn-portrait" class="crisp-canvas"></canvas>
+        <div id="vn-line"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:clamp(9px,2.25cqw,12.5px);color:#fde68a;">
+        <span id="vn-mood">✦ 穏やか</span>
+        <span>▼ タップ / Space / Enter で次へ</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTEXT-SENSITIVE ACTION DOCK (Only relevant buttons for current screen) -->
+  <div id="context-dock"></div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const STORAGE_KEY = 'mf2_2d_remake_save_v2';
+  const MAX_FREEZE_SLOTS = 10;
+
+  /* =========================================================
+     0. NON-BLOCKING TOAST BANNER (NO alert/confirm CALLS)
+     ========================================================= */
+  let toastTimer = null;
+  function showToast(msg) {
+    const banner = document.getElementById('toast-banner');
+    const textEl = document.getElementById('toast-text');
+    if (!banner || !textEl) return;
+    textEl.textContent = msg;
+    banner.classList.add('active');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      banner.classList.remove('active');
+    }, 3500);
+  }
+
+  document.getElementById('toast-close').onclick = () => {
+    document.getElementById('toast-banner').classList.remove('active');
+  };
+
+  /* =========================================================
+     1. TRUE PHYSICAL-PIXEL CANVAS HELPER (43" PC & Mobile Sharp)
+     ========================================================= */
+  function prepareCanvas(canvasEl) {
+    if (!canvasEl) return { ctx: null, w: 0, h: 0 };
+    const rect = canvasEl.getBoundingClientRect();
+    const w = Math.max(1, Math.round(rect.width));
+    const h = Math.max(1, Math.round(rect.height));
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const pw = Math.round(w * dpr);
+    const ph = Math.round(h * dpr);
+
+    if (canvasEl.width !== pw || canvasEl.height !== ph) {
+      canvasEl.width = pw;
+      canvasEl.height = ph;
+    }
+
+    const ctx = canvasEl.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    return { ctx, w, h };
+  }
+
+  /* =========================================================
+     2. WEB AUDIO SYNTH SOUND ENGINE (Distinct SFX + BGM)
+     ========================================================= */
+  class SoundEngine {
+    constructor() {
+      this.ctx = null;
+      this.enabled = true;
+      this.bgmTimer = null;
+      this.bgmMode = null;
+      this.step = 0;
+    }
+
+    unlock() {
+      try {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) this.ctx = new AudioCtx();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      } catch (_err) {
+        // Ignore audio unlock restrictions
+      }
+    }
+
+    toggle() {
+      this.enabled = !this.enabled;
+      if (!this.enabled) {
+        this.stopBgm();
+      } else if (this.bgmMode) {
+        const mode = this.bgmMode;
+        this.bgmMode = null;
+        this.playBgm(mode);
+      }
+      return this.enabled;
+    }
+
+    tone(freq, dur, type = 'triangle', vol = 0.06, delay = 0) {
+      if (!this.enabled) return;
+      this.unlock();
+      if (!this.ctx) return;
+      try {
+        const t = this.ctx.currentTime + delay;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, t);
+        gain.gain.setValueAtTime(vol, t);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + dur + 0.01);
+      } catch (_err) {
+        // Ignore oscillator errors
+      }
+    }
+
+    sfxTap()    { this.tone(760, 0.05, 'square', 0.045, 0); this.tone(1020, 0.06, 'square', 0.045, 0.035); }
+    sfxBack()   { this.tone(440, 0.06, 'triangle', 0.055, 0); this.tone(290, 0.08, 'triangle', 0.055, 0.035); }
+    sfxBirth()  { [440, 554.37, 659.25, 880, 1108.73, 1318.5].forEach((f, i) => this.tone(f, 0.14, 'triangle', 0.075, i * 0.07)); }
+    sfxPet()    { [587.33, 783.99, 987.77].forEach((f, i) => this.tone(f, 0.09, 'sine', 0.06, i * 0.05)); }
+    sfxScold()  { this.tone(190, 0.11, 'sawtooth', 0.08, 0); this.tone(145, 0.14, 'square', 0.07, 0.09); }
+    sfxTrain()  { this.tone(220, 0.08, 'square', 0.06, 0); this.tone(330, 0.09, 'square', 0.06, 0.06); this.tone(440, 0.11, 'triangle', 0.06, 0.12); }
+    sfxSlash()  { this.tone(980, 0.05, 'sawtooth', 0.08, 0); this.tone(240, 0.09, 'square', 0.08, 0.025); }
+    sfxMagic()  { [1046, 1318, 1568, 2093].forEach((f, i) => this.tone(f, 0.08, 'sine', 0.065, i * 0.035)); }
+    sfxSlam()   { this.tone(130, 0.22, 'sawtooth', 0.1, 0); this.tone(65, 0.25, 'square', 0.09, 0.05); }
+    sfxBeam()   { this.tone(1520, 0.07, 'sawtooth', 0.07, 0); this.tone(880, 0.14, 'sine', 0.075, 0.04); this.tone(420, 0.18, 'triangle', 0.07, 0.11); }
+    sfxSonic()  { [620, 930, 1240, 930, 1480].forEach((f, i) => this.tone(f, 0.055, 'triangle', 0.065, i * 0.03)); }
+    sfxShock()  { this.tone(190, 0.16, 'sawtooth', 0.085, 0); this.tone(95, 0.24, 'square', 0.08, 0.04); this.tone(280, 0.12, 'triangle', 0.055, 0.12); }
+    sfxBurst()  { [740, 1108, 1480, 1850, 2217].forEach((f, i) => this.tone(f, 0.07, 'sine', 0.065, i * 0.025)); }
+    sfxCrush()  { this.tone(165, 0.18, 'square', 0.095, 0); this.tone(82, 0.28, 'sawtooth', 0.1, 0.04); this.tone(52, 0.22, 'sine', 0.08, 0.12); }
+    sfxHowl()   { [440, 660, 880, 740, 587].forEach((f, i) => this.tone(f, 0.085, 'sawtooth', 0.06, i * 0.045)); }
+    playMoveSfx(sfxType) {
+      if (sfxType === 'beam') return this.sfxBeam();
+      if (sfxType === 'sonic') return this.sfxSonic();
+      if (sfxType === 'shock') return this.sfxShock();
+      if (sfxType === 'burst') return this.sfxBurst();
+      if (sfxType === 'crush') return this.sfxCrush();
+      if (sfxType === 'howl') return this.sfxHowl();
+      if (sfxType === 'slash') return this.sfxSlash();
+      if (sfxType === 'magic') return this.sfxMagic();
+      return this.sfxSlam();
+    }
+    sfxStep()   { this.tone(360, 0.04, 'triangle', 0.045, 0); this.tone(520, 0.05, 'triangle', 0.045, 0.03); }
+    sfxWin()    { [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => this.tone(f, 0.13, 'square', 0.07, i * 0.08)); }
+    sfxAlert()  { this.tone(311.13, 0.11, 'sawtooth', 0.085, 0); this.tone(233.08, 0.14, 'sawtooth', 0.085, 0.1); this.tone(174.61, 0.2, 'square', 0.08, 0.2); }
+    sfxSearch() { [440, 587.33, 440, 659.25, 783.99].forEach((f, i) => this.tone(f, 0.09, 'triangle', 0.06, i * 0.075)); }
+    sfxChime()  { [587.33, 880, 1174.66].forEach((f, i) => this.tone(f, 0.12, 'sine', 0.065, i * 0.06)); }
+    sfxPose()   { [392, 523.25, 659.25, 1046.5].forEach((f, i) => this.tone(f, 0.1, 'triangle', 0.075, i * 0.055)); }
+    sfxTick(final = false) {
+      if (final) {
+        this.tone(880, 0.08, 'square', 0.08, 0);
+        this.tone(1318.5, 0.18, 'triangle', 0.09, 0.06);
+      } else {
+        this.tone(660, 0.07, 'square', 0.06, 0);
+      }
+    }
+
+    stopBgm() {
+      if (this.bgmTimer) {
+        clearInterval(this.bgmTimer);
+        this.bgmTimer = null;
+      }
+    }
+
+    playBgm(mode) {
+      if (this.bgmMode === mode && this.bgmTimer) return;
+      this.bgmMode = mode;
+      this.stopBgm();
+      if (!this.enabled) return;
+
+      const tracks = {
+        ranch: {
+          ms: 215,
+          type: 'triangle',
+          notes: [392, 440, 523.25, 659.25, 587.33, 523.25, 440, 392, 493.88, 587.33, 659.25, 587.33, 523.25, 440, 392, 0]
+        },
+        battle: {
+          ms: 125,
+          type: 'square',
+          notes: [329.63, 329.63, 392, 493.88, 440, 392, 369.99, 329.63, 493.88, 587.33, 659.25, 587.33, 493.88, 440, 392, 329.63]
+        }
+      };
+
+      const tr = tracks[mode] || tracks.ranch;
+      this.step = 0;
+      this.bgmTimer = setInterval(() => {
+        if (!this.enabled) return;
+        const noteFreq = tr.notes[this.step % tr.notes.length];
+        if (noteFreq > 0) this.tone(noteFreq, (tr.ms / 1000) * 0.85, tr.type, 0.02, 0);
+        this.step++;
+      }, tr.ms);
+    }
+  }
+
+  const sfx = new SoundEngine();
+
+  /* =========================================================
+     3. MONSTER SPECIES, NUMBER BIRTH & FUSION (合体) ENGINE
+     ========================================================= */
+  const SPECIES_POOL = [
+    { id: 'suezou',     name: 'スエゾー',       body: '#38bdf8', accent: '#fef08a', trait: 'やんちゃ',     base: { hp: 115, pow: 78,  int: 96,  hit: 90, spd: 76, def: 62 },  life: 185 },
+    { id: 'mochi',      name: 'モッチー',       body: '#fbcfe8', accent: '#f472b6', trait: '甘えん坊',     base: { hp: 125, pow: 72,  int: 82,  hit: 86, spd: 84, def: 74 },  life: 195 },
+    { id: 'pixie',      name: 'ピクシー',       body: '#a78bfa', accent: '#fde047', trait: '気まぐれ',     base: { hp: 100, pow: 64,  int: 105, hit: 95, spd: 96, def: 56 },  life: 180 },
+    { id: 'golem',      name: 'ゴーレム',       body: '#a16207', accent: '#fbbf24', trait: '実直',         base: { hp: 165, pow: 104, int: 54,  hit: 70, spd: 48, def: 108 }, life: 210 },
+    { id: 'liger',      name: 'ライガー',       body: '#fb923c', accent: '#fef3c7', trait: '誇り高い',     base: { hp: 132, pow: 92,  int: 80,  hit: 92, spd: 88, def: 72 },  life: 190 },
+    { id: 'roadrunner', name: 'ロードランナー', body: '#60a5fa', accent: '#facc15', trait: '軽快',         base: { hp: 118, pow: 80,  int: 76,  hit: 98, spd: 94, def: 66 },  life: 185 },
+    { id: 'hare',       name: 'ハム',           body: '#fdba74', accent: '#f87171', trait: '元気いっぱい', base: { hp: 122, pow: 88,  int: 74,  hit: 88, spd: 92, def: 70 },  life: 190 },
+    { id: 'gel',        name: 'ゲル',           body: '#34d399', accent: '#a7f3d0', trait: 'マイペース',   base: { hp: 140, pow: 74,  int: 86,  hit: 82, spd: 70, def: 86 },  life: 200 },
+    { id: 'dragon',     name: 'ドラゴン',       body: '#ef4444', accent: '#facc15', trait: '猛々しい',     base: { hp: 158, pow: 108, int: 92,  hit: 84, spd: 74, def: 94 },  life: 175 },
+    { id: 'beaclon',    name: 'ビークロン',     body: '#2dd4bf', accent: '#fef08a', trait: '鋭敏',         base: { hp: 136, pow: 94,  int: 88,  hit: 94, spd: 90, def: 78 },  life: 188 }
+  ];
+
+  const SUB_VARIANTS = [
+    { label: '純血', tint: null,      mult: 1.0 },
+    { label: '紅蓮', tint: '#f43f5e', mult: 1.08 },
+    { label: '蒼穹', tint: '#38bdf8', mult: 1.08 },
+    { label: '黄金', tint: '#facc15', mult: 1.15 }
+  ];
+
+  const SECRET_FLAVORS = [
+    { id: 'none',        name: '隠し味なし',     cost: 0,   forceSpecies: null,         forceSub: null,      bonus: {} },
+    { id: 'dragon_scale',name: '竜の逆鱗',       cost: 600, forceSpecies: 'dragon',     forceSub: '紅蓮',    bonus: { pow: 10, def: 8, maxHp: 20 } },
+    { id: 'fairy_dust',  name: '妖精の星粉',     cost: 550, forceSpecies: 'pixie',      forceSub: '蒼穹',    bonus: { intStat: 12, spd: 10, hit: 8 } },
+    { id: 'golden_peach',name: '黄金モモの隠し味',cost: 800, forceSpecies: null,         forceSub: '黄金',    bonus: { pow: 6, intStat: 6, hit: 6, spd: 6, def: 6, maxHp: 25 } }
+  ];
+
+  function hashCodeString(str) {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    return h >>> 0;
+  }
+
+  function previewSpeciesFromCode(codeStr) {
+    const clean = (codeStr || '19990722').replace(/\D/g, '') || '19990722';
+    const h = hashCodeString(clean);
+    const sp = SPECIES_POOL[h % SPECIES_POOL.length];
+    const sub = SUB_VARIANTS[(h >>> 4) % SUB_VARIANTS.length];
+    return `${sub.label}・${sp.name}系`;
+  }
+
+  function cloneMonster(m) {
+    return JSON.parse(JSON.stringify(m));
+  }
+
+  // MF2 rich technique catalog: statType ('pow' = ちから技, 'int' = かしこさ技), range 4 (far) to 1 (close)
+  // No technique level exists in Monster Farm 2; each technique has fixed intrinsic parameters.
+  const TECHNIQUE_CATALOG = {
+    // Range 4 (Far)
+    far_shot:      { id: 'far_shot',      name: '遠距離ショット',  statType: 'int', range: 4, gutsCost: 26, power: 38, hitBonus: 2,  gutsDrain: 0,  knockback: 0, fxType: 'beam',  sfxType: 'beam' },
+    snipe_arrow:   { id: 'snipe_arrow',   name: '狙い撃ち弾',    statType: 'pow', range: 4, gutsCost: 30, power: 44, hitBonus: 8,  gutsDrain: 4,  knockback: 0, fxType: 'burst', sfxType: 'burst' },
+    meteor_orb:    { id: 'meteor_orb',    name: 'メテオオーブ',  statType: 'int', range: 4, gutsCost: 42, power: 64, hitBonus: -4, gutsDrain: 6,  knockback: 1, fxType: 'burst', sfxType: 'magic' },
+    astral_beam:   { id: 'astral_beam',   name: 'アストラル光線',statType: 'int', range: 4, gutsCost: 44, power: 70, hitBonus: 3,  gutsDrain: 10, knockback: 1, fxType: 'beam',  sfxType: 'beam' },
+    // Range 3 (Mid)
+    mind_pulse:    { id: 'mind_pulse',    name: '念力波動',      statType: 'int', range: 3, gutsCost: 25, power: 36, hitBonus: 6,  gutsDrain: 5,  knockback: 0, fxType: 'sonic', sfxType: 'sonic' },
+    sonic_wave:    { id: 'sonic_wave',    name: 'ソニックウェーブ',statType: 'int', range: 3, gutsCost: 32, power: 48, hitBonus: 5,  gutsDrain: 8,  knockback: 1, fxType: 'sonic', sfxType: 'sonic' },
+    magma_flare:   { id: 'magma_flare',   name: 'マグマフレア',  statType: 'int', range: 3, gutsCost: 38, power: 58, hitBonus: 2,  gutsDrain: 7,  knockback: 1, fxType: 'shock', sfxType: 'shock' },
+    howl_roar:     { id: 'howl_roar',     name: '威嚇咆哮',      statType: 'int', range: 3, gutsCost: 24, power: 34, hitBonus: 10, gutsDrain: 14, knockback: 0, fxType: 'howl',  sfxType: 'howl' },
+    // Range 2 (Close-Mid)
+    dash_strike:   { id: 'dash_strike',   name: '体当たり',      statType: 'pow', range: 2, gutsCost: 28, power: 42, hitBonus: 4,  gutsDrain: 6,  knockback: 1, fxType: 'slam',  sfxType: 'slam' },
+    gale_fang:     { id: 'gale_fang',     name: '疾風連牙',      statType: 'pow', range: 2, gutsCost: 30, power: 48, hitBonus: 9,  gutsDrain: 5,  knockback: 0, fxType: 'claw',  sfxType: 'slash' },
+    earth_tremor:  { id: 'earth_tremor',  name: '地響き突進',    statType: 'pow', range: 2, gutsCost: 36, power: 56, hitBonus: 1,  gutsDrain: 10, knockback: 1, fxType: 'shock', sfxType: 'shock' },
+    psycho_burst:  { id: 'psycho_burst',  name: 'サイコバースト',statType: 'int', range: 2, gutsCost: 34, power: 52, hitBonus: 6,  gutsDrain: 9,  knockback: 1, fxType: 'burst', sfxType: 'burst' },
+    // Range 1 (Point-blank)
+    claw:          { id: 'claw',          name: 'ひっかき',      statType: 'pow', range: 1, gutsCost: 18, power: 30, hitBonus: 10, gutsDrain: 3,  knockback: 0, fxType: 'claw',  sfxType: 'slash' },
+    heavy_slam:    { id: 'heavy_slam',    name: '大技プレス',    statType: 'pow', range: 1, gutsCost: 34, power: 58, hitBonus: -2, gutsDrain: 10, knockback: 1, fxType: 'slam',  sfxType: 'slam' },
+    mountain_crush:{ id: 'mountain_crush',name: '山岳粉砕撃',    statType: 'pow', range: 1, gutsCost: 40, power: 68, hitBonus: 3,  gutsDrain: 14, knockback: 1, fxType: 'crush', sfxType: 'crush' },
+    nova_touch:    { id: 'nova_touch',    name: 'ノヴァタッチ',  statType: 'int', range: 1, gutsCost: 35, power: 60, hitBonus: 5,  gutsDrain: 12, knockback: 1, fxType: 'shock', sfxType: 'shock' }
+  };
+
+  function createMoveInstance(catalogId) {
+    const base = TECHNIQUE_CATALOG[catalogId] || TECHNIQUE_CATALOG.claw;
+    return {
+      ...base,
+      uses: 0
+    };
+  }
+
+  // Sort moves from farthest range (4) to closest range (1)
+  function getSortedMoves(monster) {
+    if (!monster || !Array.isArray(monster.moves)) return [];
+    return [...monster.moves.slice(0, 4)].sort((a, b) => (b.range - a.range) || (b.power - a.power));
+  }
+
+  // Sort moves from farthest range (4) to closest range (1)
+  function getSortedMoves(monster) {
+    if (!monster || !Array.isArray(monster.moves)) return [];
+    return [...monster.moves.slice(0, 4)].sort((a, b) => (b.range - a.range) || (b.basePower - a.basePower));
+  }
+
+  function statTypeLabel(statType) {
+    return statType === 'int' ? 'かしこさ技' : 'ちから技';
+  }
+
+  // Format elapsed age since birth in years, months, and weeks (never exposing remaining lifespan)
+  function formatElapsedAge(ageWeeks) {
+    const wTotal = Math.max(0, Math.floor(ageWeeks || 0));
+    const years = Math.floor(wTotal / 48);
+    const remWeeksAfterYear = wTotal % 48;
+    const months = Math.floor(remWeeksAfterYear / 4);
+    const weeks = (remWeeksAfterYear % 4) + 1;
+    return `${years}年${months}ヶ月${weeks}週目`;
+  }
+
+  function buildMonsterFromCode(codeStr) {
+    const clean = (codeStr || '19990722').replace(/\D/g, '') || '19990722';
+    const h = hashCodeString(clean);
+    const sp = SPECIES_POOL[h % SPECIES_POOL.length];
+    const sub = SUB_VARIANTS[(h >>> 4) % SUB_VARIANTS.length];
+    const jitter = (shift, span) => (((h >>> shift) % (span * 2 + 1)) - span);
+
+    const pow = Math.max(30, Math.round(sp.base.pow * sub.mult + jitter(6, 10)));
+    const intStat = Math.max(30, Math.round(sp.base.int * sub.mult + jitter(10, 10)));
+    const hit = Math.max(35, Math.round(sp.base.hit * sub.mult + jitter(14, 10)));
+    const spd = Math.max(30, Math.round(sp.base.spd * sub.mult + jitter(18, 10)));
+    const def = Math.max(30, Math.round(sp.base.def * sub.mult + jitter(22, 10)));
+    const maxHp = Math.max(80, Math.round(sp.base.hp * sub.mult + jitter(26, 15)));
+
+    const starterMoveIds = pow >= intStat
+      ? ['far_shot', 'mind_pulse', 'dash_strike', 'claw']
+      : ['far_shot', 'sonic_wave', 'psycho_burst', 'claw'];
+    const moves = starterMoveIds.map(id => createMoveInstance(id));
+
+    return {
+      code: clean,
+      speciesId: sp.id,
+      name: sp.name,
+      subLabel: sub.label,
+      tint: sub.tint,
+      color: sp.body,
+      accent: sp.accent,
+      trait: sp.trait,
+      hp: maxHp,
+      maxHp,
+      pow,
+      intStat,
+      hit,
+      spd,
+      def,
+      lifespan: sp.life + jitter(12, 20),
+      ageWeeks: 0,
+      fatigue: 8,
+      stress: 8,
+      loyalty: 55 + ((h >>> 8) % 25),
+      alignment: ((h % 41) - 20),
+      lastSlacked: false,
+      moves: getSortedMoves({ moves }),
+      animMood: 'happy',
+      animTimer: 0
+    };
+  }
+
+  function fuseTwoMonsters(parentA, parentB, flavor) {
+    const pickSpId = flavor.forceSpecies || (Math.random() < 0.5 ? parentA.speciesId : parentB.speciesId);
+    const sp = SPECIES_POOL.find(s => s.id === pickSpId) || SPECIES_POOL[0];
+
+    const subObj = flavor.forceSub
+      ? (SUB_VARIANTS.find(sv => sv.label === flavor.forceSub) || SUB_VARIANTS[0])
+      : (Math.random() < 0.5 ? SUB_VARIANTS.find(sv => sv.label === parentA.subLabel) : SUB_VARIANTS.find(sv => sv.label === parentB.subLabel)) || SUB_VARIANTS[0];
+
+    const inherit = (a, b, bonus = 0) => Math.max(35, Math.round((a + b) * 0.34 + bonus));
+    const maxHp = Math.max(100, Math.round((parentA.maxHp + parentB.maxHp) * 0.35 + (flavor.bonus.maxHp || 0)));
+    const pow = inherit(parentA.pow, parentB.pow, flavor.bonus.pow || 0);
+    const intStat = inherit(parentA.intStat, parentB.intStat, flavor.bonus.intStat || 0);
+    const hit = inherit(parentA.hit, parentB.hit, flavor.bonus.hit || 0);
+    const spd = inherit(parentA.spd, parentB.spd, flavor.bonus.spd || 0);
+    const def = inherit(parentA.def, parentB.def, flavor.bonus.def || 0);
+
+    // Fixed 4-slot inheritance without any reserve bag
+    const mergedMovesMap = new Map();
+    [...(parentA.moves || []), ...(parentB.moves || [])].forEach(mv => {
+      if (mergedMovesMap.size >= 4 && !mergedMovesMap.has(mv.id)) return;
+      const prev = mergedMovesMap.get(mv.id);
+      if (!prev || (mv.power || 0) > (prev.power || 0)) {
+        mergedMovesMap.set(mv.id, { ...mv, uses: 0 });
+      }
+    });
+
+    return {
+      code: `${parentA.code.slice(-4)}${parentB.code.slice(-4)}`,
+      speciesId: sp.id,
+      name: sp.name,
+      subLabel: subObj.label,
+      tint: subObj.tint,
+      color: sp.body,
+      accent: sp.accent,
+      trait: `${parentA.trait}×${parentB.trait}`,
+      hp: maxHp,
+      maxHp,
+      pow,
+      intStat,
+      hit,
+      spd,
+      def,
+      lifespan: Math.max(130, Math.round((parentA.lifespan + parentB.lifespan) * 0.45 + 55)),
+      ageWeeks: 0,
+      fatigue: 5,
+      stress: 5,
+      loyalty: Math.min(100, Math.round((parentA.loyalty + parentB.loyalty) * 0.55 + 10)),
+      alignment: Math.round((parentA.alignment + parentB.alignment) * 0.5),
+      lastSlacked: false,
+      moves: getSortedMoves({ moves: Array.from(mergedMovesMap.values()).slice(0, 4) }),
+      animMood: 'happy',
+      animTimer: 160
+    };
+  }
+
+  /* =========================================================
+     4. EXPRESSIVE 2D MONSTER & HUMAN PORTRAIT RENDERER
+     ========================================================= */
+  function drawMonsterSprite(ctx, m, cx, cy, scale = 1, mirror = false, tNow = 0) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    if (mirror) ctx.scale(-scale, scale);
+    else ctx.scale(scale, scale);
+
+    const tired = (m.fatigue || 0) >= 65 || (m.stress || 0) >= 65;
+    let dy = Math.sin(tNow / 210) * 3;
+    let dx = 0;
+    let tilt = 0;
+
+    if (m.animMood === 'happy' && m.animTimer > 0) {
+      dy = -Math.abs(Math.sin(tNow / 95)) * 14;
+      tilt = Math.sin(tNow / 80) * 0.1;
+    } else if (m.animMood === 'attack' && m.animTimer > 0) {
+      dx = 16;
+      tilt = 0.14;
+    } else if (m.animMood === 'hit' && m.animTimer > 0) {
+      dx = -10;
+      tilt = -0.15;
+    } else if (m.animMood === 'sulky' && m.animTimer > 0) {
+      dy = 5;
+      tilt = -0.14;
+    } else if (tired) {
+      dy = 3 + Math.sin(tNow / 450) * 1.5;
+      tilt = -0.08;
+    }
+
+    ctx.translate(dx, dy);
+    ctx.rotate(tilt);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    ctx.fillStyle = 'rgba(0,0,0,0.36)';
+    ctx.beginPath();
+    ctx.ellipse(0, 34, 24, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const mainCol = m.tint || m.color;
+    const accCol = m.accent;
+    ctx.fillStyle = mainCol;
+    ctx.strokeStyle = '#090d16';
+    ctx.lineWidth = 2;
+
+    if (m.speciesId === 'suezou') {
+      ctx.fillStyle = '#fef08a';
+      ctx.fillRect(-5, 16, 4, 15);
+      ctx.fillRect(4, 16, 4, 15);
+      ctx.fillStyle = mainCol;
+      ctx.beginPath();
+      ctx.arc(0, -4, 21, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(3, -5, 8.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#090d16';
+      ctx.beginPath();
+      ctx.arc(4.5, -5, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(3.5, -6.5, 1.3, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#090d16';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      if (m.animMood === 'happy') ctx.arc(2, 5, 5, 0.1 * Math.PI, 0.9 * Math.PI);
+      else ctx.arc(2, 7, 4, 1.1 * Math.PI, 1.9 * Math.PI);
+      ctx.stroke();
+    } else if (m.speciesId === 'pixie') {
+      ctx.fillStyle = 'rgba(186, 230, 253, 0.72)';
+      ctx.beginPath();
+      ctx.ellipse(-18, -10, 12, 6, -0.4 + Math.sin(tNow / 90) * 0.2, 0, Math.PI * 2);
+      ctx.ellipse(18, -10, 12, 6, 0.4 - Math.sin(tNow / 90) * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = mainCol;
+      ctx.beginPath();
+      ctx.moveTo(0, -28);
+      ctx.lineTo(16, 4);
+      ctx.lineTo(0, 24);
+      ctx.lineTo(-16, 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = accCol;
+      ctx.beginPath();
+      ctx.arc(0, -12, 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    } else if (m.speciesId === 'golem' || m.speciesId === 'dragon') {
+      ctx.beginPath();
+      ctx.roundRect(-22, -24, 44, 52, 9);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = accCol;
+      ctx.beginPath();
+      ctx.moveTo(-14, -24);
+      ctx.lineTo(-18, -36);
+      ctx.lineTo(-6, -24);
+      ctx.moveTo(14, -24);
+      ctx.lineTo(18, -36);
+      ctx.lineTo(6, -24);
+      ctx.fill();
+      ctx.stroke();
+    } else if (m.speciesId === 'hare' || m.speciesId === 'roadrunner' || m.speciesId === 'liger') {
+      ctx.beginPath();
+      ctx.ellipse(0, 4, 20, 16, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(10, -14, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(6, -30, 4, 11, -0.2, 0, Math.PI * 2);
+      ctx.ellipse(14, -30, 4, 11, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.arc(0, 2, 22, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = accCol;
+      ctx.beginPath();
+      ctx.arc(-9, -15, 7, 0, Math.PI * 2);
+      ctx.arc(9, -15, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    if (m.speciesId !== 'suezou') {
+      ctx.fillStyle = '#090d16';
+      ctx.beginPath();
+      ctx.arc(-5, -4, 2.5, 0, Math.PI * 2);
+      ctx.arc(6, -4, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    if (m.animMood === 'happy' && m.animTimer > 0) {
+      ctx.fillStyle = '#fb7185';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.fillText('♥', 18, -24);
+      ctx.fillStyle = '#fef08a';
+      ctx.fillText('✦', -24, -22);
+    } else if (m.animMood === 'sulky' && m.animTimer > 0) {
+      ctx.fillStyle = '#60a5fa';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.fillText('💦', 18, -22);
+    }
+
+    ctx.restore();
+  }
+
+  function drawHumanPortrait(canvasEl, who, mood = '元気') {
+    const { ctx, w, h } = prepareCanvas(canvasEl);
+    if (!ctx) return;
+    ctx.clearRect(0, 0, w, h);
+
+    const bg = ctx.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0, '#1e3a5f');
+    bg.addColorStop(1, '#0b1322');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.save();
+    ctx.translate(w * 0.5, h * 0.58);
+    const sc = Math.min(w / 76, h / 88);
+    ctx.scale(sc, sc);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    if (who === 'holly') {
+      ctx.fillStyle = '#ec4899';
+      ctx.strokeStyle = '#1e1b4b';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.arc(0, -12, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffe4cc';
+      ctx.beginPath();
+      ctx.arc(0, -10, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#f43f5e';
+      ctx.beginPath();
+      ctx.roundRect(-14, 2, 28, 26, 5);
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = '#d97706';
+      ctx.strokeStyle = '#1c1917';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.arc(0, -13, 15, Math.PI * 0.95, Math.PI * 2.05);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffe4cc';
+      ctx.beginPath();
+      ctx.arc(0, -10, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#15803d';
+      ctx.beginPath();
+      ctx.roundRect(-14, 2, 28, 26, 5);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#fef08a';
+      ctx.fillRect(-5, 3, 10, 14);
+    }
+
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.arc(-4.5, -10, 2, 0, Math.PI * 2);
+    ctx.arc(4.5, -10, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#991b1b';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(0, -5, 3, 0.1 * Math.PI, 0.9 * Math.PI);
+    ctx.stroke();
+
+    ctx.restore();
+    document.getElementById('vn-mood').textContent = `✦ ${mood}`;
+  }
+
+  /* =========================================================
+     5. GAME STATE, MENUS, DIALOGUE & SAVE / LOAD / DELETE
+     ========================================================= */
+  const RANKS = ['E', 'D', 'C', 'B', 'A', 'S'];
+
+  const TRAINING_MENUS = {
+    hp:      { key: 'hp',      label: 'ライフ練（持久走）',    subStat: 'def', costHeavy: 280, costLight: 120, gainBase: 14, subGain: 2, fatH: 22, fatL: 9,  strH: 15, strL: 6, fx: 'slam',  msg: '丘を駆け抜けて心肺とライフを鍛えた！' },
+    pow:     { key: 'pow',     label: 'ちから練（大岩押）',    subStat: 'hp',  costHeavy: 320, costLight: 130, gainBase: 7,  subGain: 4, fatH: 26, fatL: 10, strH: 19, strL: 7, fx: 'slam',  msg: '巨岩を押し込んで筋力（ちから）を練り上げた！' },
+    intStat: { key: 'intStat', label: 'かしこさ練（瞑想読書）',subStat: 'hit', costHeavy: 280, costLight: 120, gainBase: 7,  subGain: 2, fatH: 16, fatL: 7,  strH: 14, strL: 5, fx: 'magic', msg: '古代の理を読み解き、かしこさを研ぎ澄ませた！' },
+    hit:     { key: 'hit',     label: '命中練（標的連撃）',    subStat: 'spd', costHeavy: 300, costLight: 120, gainBase: 7,  subGain: 2, fatH: 20, fatL: 8,  strH: 16, strL: 6, fx: 'slash', msg: '動く標的を正確に捉え、命中精度を高めた！' },
+    spd:     { key: 'spd',     label: '回避練（渓流ステップ）',subStat: 'hit', costHeavy: 300, costLight: 120, gainBase: 7,  subGain: 2, fatH: 21, fatL: 9,  strH: 15, strL: 6, fx: 'slash', msg: '流れの速い足場でステップを磨き、回避力を強化！' },
+    def:     { key: 'def',     label: '丈夫さ練（滝行耐性）',  subStat: 'hp',  costHeavy: 320, costLight: 130, gainBase: 7,  subGain: 5, fatH: 24, fatL: 10, strH: 18, strL: 7, fx: 'slam',  msg: '激しい打撃と水流に耐え、丈夫さを鍛え抜いた！' }
+  };
+
+  const FEED_TYPES = [
+    { id: 'jelly', name: 'ビタミンゼリー', price: 180, desc: '疲労-18 / ストレス-12 / 忠誠+3', fatDelta: -18, strDelta: -12, loyDelta: 3, alignDelta: 2, hpDelta: 12, statBoost: null, react: 'ぷるんと甘いゼリーに目を輝かせてぺろりと完食！' },
+    { id: 'meat', name: '特上ワイルド肉', price: 320, desc: 'ちから+4 / ストレス-10 / 忠誠+4', fatDelta: -10, strDelta: -10, loyDelta: 4, alignDelta: 1, hpDelta: 18, statBoost: { pow: 4 }, react: '豪快にかぶりつき、力みなぎる唸り声をあげた！' },
+    { id: 'magic_fruit', name: '星月夜の魔導実', price: 340, desc: 'かしこさ+4 / 命中+3 / ストレス-14', fatDelta: -12, strDelta: -14, loyDelta: 3, alignDelta: 3, hpDelta: 10, statBoost: { intStat: 4, hit: 3 }, react: '神秘的な光を帯びた果実を味わい、瞳が澄み渡った！' },
+    { id: 'herb_mix', name: '薬草ブレンド穀物', price: 240, desc: '疲労-28 / ストレス-16 / 丈夫さ+2', fatDelta: -28, strDelta: -16, loyDelta: 2, alignDelta: 2, hpDelta: 22, statBoost: { def: 2 }, react: '香ばしい穀物と薬草で体がすっと軽くなったようだ！' },
+    { id: 'golden_peach', name: '黄金モモ（秘宝エサ）', price: 750, desc: '疲労-35 / ストレス-25 / 忠誠+8 / 全能力+2', fatDelta: -35, strDelta: -25, loyDelta: 8, alignDelta: 5, hpDelta: 35, statBoost: { pow: 2, intStat: 2, hit: 2, spd: 2, def: 2 }, react: '芳醇な香りに大喜び！体中から溢れる活力がみなぎる！' }
+  ];
+
+  const ERRANTRY_PLACES = [
+    {
+      id: 'yahato',
+      name: 'ヤハト山脈（雪と岩場）',
+      weeks: 2,
+      cost: 650,
+      reqLabel: 'ちから45以上 または 丈夫さ45以上',
+      canGo: (m) => m.pow >= 45 || m.def >= 45,
+      lostBase: 0.16,
+      learnable: [
+        createMoveInstance('mountain_crush'),
+        createMoveInstance('heavy_slam'),
+        createMoveInstance('earth_tremor')
+      ]
+    },
+    {
+      id: 'kaurea',
+      name: 'カウレア火山（灼熱火口）',
+      weeks: 3,
+      cost: 900,
+      reqLabel: 'ちから60以上 または ライフ130以上',
+      canGo: (m) => m.pow >= 60 || m.maxHp >= 130,
+      lostBase: 0.22,
+      learnable: [
+        createMoveInstance('magma_flare'),
+        createMoveInstance('meteor_orb'),
+        createMoveInstance('heavy_slam')
+      ]
+    },
+    {
+      id: 'rema',
+      name: 'レマ海岸（潮騒と断崖）',
+      weeks: 2,
+      cost: 600,
+      reqLabel: '回避45以上 または 命中45以上',
+      canGo: (m) => m.spd >= 45 || m.hit >= 45,
+      lostBase: 0.14,
+      learnable: [
+        createMoveInstance('gale_fang'),
+        createMoveInstance('snipe_arrow'),
+        createMoveInstance('sonic_wave')
+      ]
+    },
+    {
+      id: 'ancient_ruins',
+      name: 'パレレレジャングル遺跡',
+      weeks: 3,
+      cost: 850,
+      reqLabel: 'かしこさ55以上',
+      canGo: (m) => m.intStat >= 55,
+      lostBase: 0.20,
+      learnable: [
+        createMoveInstance('astral_beam'),
+        createMoveInstance('psycho_burst'),
+        createMoveInstance('howl_roar')
+      ]
+    }
+  ];
+
+  const initialStarter = buildMonsterFromCode('19990722');
+
+  const state = {
+    screen: 'title',
+    year: 1,
+    month: 1,
+    week: 1,
+    rankIdx: 0,
+    gold: 2500,
+    trainingHeavy: true,
+    injuryWeeks: 0,
+    birthCode: '19990722',
+    monster: null, // Ranch starts completely EMPTY on new game until Shrine birth or unfreeze
+    frozenMonsters: [],
+    lastOpponentKey: null,
+    pendingMoveOverwrite: null,
+    ceremony: null,
+    dialogue: [],
+    onDialogueDone: null,
+    battle: null
+  };
+
+  function requireActiveMonster(actionLabel) {
+    if (!state.monster) {
+      sfx.sfxBack();
+      showToast(`現在牧場にモンスターがいません。「${actionLabel}」の前に数字の神殿で誕生させるか、冬眠枠から牧場へ出してください。`);
+      return false;
+    }
+    return true;
+  }
+
+  function advanceWeek(weeks = 1) {
+    for (let i = 0; i < weeks; i++) {
+      state.week++;
+      if (state.week > 4) {
+        state.week = 1;
+        state.month++;
+        if (state.month > 12) {
+          state.month = 1;
+          state.year++;
+        }
+      }
+      if (state.monster) {
+        state.monster.ageWeeks = (state.monster.ageWeeks || 0) + 1;
+        state.monster.lifespan = Math.max(0, state.monster.lifespan - 1);
+      }
+    }
+    updateTopHud();
+  }
+
+  function updateTopHud() {
+    document.getElementById('hud-date').textContent = `📅 ${state.year}年目 ${state.month}月 ${state.week}週`;
+    document.getElementById('hud-rank').textContent = `🏆 ${RANKS[state.rankIdx]}ランク`;
+    document.getElementById('hud-gold').textContent = `💰 ${state.gold}G`;
+  }
+
+  function syncContextBarAndLegend(screenName) {
+    const legend = document.getElementById('pc-legend');
+    const dock = document.getElementById('context-dock');
+
+    if (state.dialogue.length > 0) {
+      legend.innerHTML = `<span><span class="ktag">Space/Enter</span>会話送り</span>`;
+      dock.innerHTML = `<button type="button" class="btn btn-gold" style="width:100%;" onclick="window.__mf2NextDialogue()">▶ 会話を進める (Space / Enter)</button>`;
+      return;
+    }
+
+    if (screenName === 'title') {
+      legend.innerHTML = `<span><span class="ktag">Enter</span>牧場開始</span>`;
+      dock.innerHTML = `
+        <button type="button" class="btn btn-sm btn-gold" style="flex:1;" onclick="window.__mf2StartRanch()">▶ 牧場へ</button>
+        <button type="button" class="btn btn-sm" style="flex:1;" onclick="window.__mf2Load()">📂 ロード</button>
+      `;
+    } else if (screenName === 'ceremony') {
+      legend.innerHTML = `<span><span class="ktag">Space/Enter</span>牧場へ進む</span>`;
+      dock.innerHTML = `
+        <button type="button" class="btn btn-sm" style="flex:1;" onclick="window.__mf2SkipCeremony()">⏭ 演出スキップ</button>
+        <button type="button" class="btn btn-sm btn-gold" style="flex:2;" onclick="window.__mf2FinishCeremony()">🌿 牧場へ行く</button>
+      `;
+    } else if (screenName === 'ranch') {
+      legend.innerHTML = `
+        <span><span class="ktag">C</span>なでる</span>
+        <span><span class="ktag">Esc</span>セーブ管理</span>
+      `;
+      dock.innerHTML = `
+        <button type="button" class="btn btn-sm btn-cyan" style="flex:1;" onclick="window.__mf2Pet()">✋ なでる (C)</button>
+        <button type="button" class="btn btn-sm" style="flex:1;" onclick="window.__mf2Praise()">🌟 ほめる</button>
+        <button type="button" class="btn btn-sm btn-rose" style="flex:1;" onclick="window.__mf2Scold()">💢 しかる</button>
+        <button type="button" class="btn btn-sm btn-gold" style="flex:1;" onclick="window.__mf2Shrine()">🏛 神殿</button>
+      `;
+    } else if (screenName === 'birth') {
+      legend.innerHTML = `
+        <span><span class="ktag">0-9</span>数字入力</span>
+        <span><span class="ktag">Backspace</span>1桁消す</span>
+        <span><span class="ktag">Enter</span>誕生演出</span>
+        <span><span class="ktag">Esc</span>戻る</span>
+      `;
+      dock.innerHTML = `
+        <button type="button" class="btn btn-sm btn-cyan" style="flex:1;" onclick="window.__mf2RandCode()">🎲 ランダム</button>
+        <button type="button" class="btn btn-sm btn-gold" style="flex:2;" onclick="window.__mf2Summon()">✨ 誕生演出へ (Enter)</button>
+        <button type="button" class="btn btn-sm" style="flex:1;" onclick="window.__mf2BackToRanch()">← 戻る</button>
+      `;
+    } else if (screenName === 'battle') {
+      legend.innerHTML = `
+        <span><span class="ktag">A</span>後退</span>
+        <span><span class="ktag">D</span>接近</span>
+        <span><span class="ktag">Enter</span>技発動</span>
+      `;
+      dock.innerHTML = `
+        <button id="dock-btn-fire-move" type="button" class="btn btn-gold" style="width:100%;touch-action:manipulation;">⚡ 技発動 (Enter)</button>
+      `;
+      const fireBtn = document.getElementById('dock-btn-fire-move');
+      if (fireBtn) {
+        const handleFire = (ev) => {
+          if (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+          }
+          const nowTs = performance.now();
+          if (state.battle && state.battle.lastFireTapTime && nowTs - state.battle.lastFireTapTime < 120) return;
+          if (state.battle) state.battle.lastFireTapTime = nowTs;
+          triggerFocusedMove();
+        };
+        fireBtn.addEventListener('pointerup', handleFire, { passive: false });
+        fireBtn.addEventListener('click', handleFire);
+      }
+    } else {
+      legend.innerHTML = `<span><span class="ktag">Esc</span>牧場へ戻る</span>`;
+      dock.innerHTML = `<button type="button" class="btn btn-sm" style="width:100%;" onclick="window.__mf2BackToRanch()">← 牧場へ戻る (Esc)</button>`;
+    }
+  }
+
+  function showDialogue(lines, badge = 'コルト', onDone = null) {
+    state.dialogue = [...lines];
+    state.onDialogueDone = onDone;
+    document.getElementById('vn-badge').textContent = badge;
+    nextDialogue();
+  }
+
+  function nextDialogue() {
+    const box = document.getElementById('vn-box');
+    if (state.dialogue.length === 0) {
+      box.classList.remove('active');
+      syncContextBarAndLegend(state.screen);
+      if (state.onDialogueDone) {
+        const cb = state.onDialogueDone;
+        state.onDialogueDone = null;
+        cb();
+      }
+      return;
+    }
+    const item = state.dialogue.shift();
+    const whoMap = { colt: 'コルト', holly: 'ホリィ' };
+    document.getElementById('vn-speaker').textContent = whoMap[item.who] || item.who;
+    document.getElementById('vn-line').textContent = item.text;
+    box.classList.add('active');
+    drawHumanPortrait(document.getElementById('vn-portrait'), item.who, item.mood || 'アドバイス');
+    syncContextBarAndLegend(state.screen);
+    sfx.sfxTap();
+  }
+
+  function goScreen(name) {
+    state.screen = name;
+    document.querySelectorAll('.screen-view').forEach(v => v.classList.remove('active'));
+    document.getElementById(`view-${name}`).classList.add('active');
+    updateTopHud();
+    syncContextBarAndLegend(name);
+
+    requestAnimationFrame(() => {
+      if (name === 'title') {
+        renderTitleShowcase();
+        sfx.playBgm('ranch');
+      } else if (name === 'birth') {
+        refreshBirthUI();
+        sfx.playBgm('ranch');
+      } else if (name === 'ceremony') {
+        sfx.playBgm('ranch');
+      } else if (name === 'ranch') {
+        refreshRanchUI();
+        sfx.playBgm('ranch');
+      } else if (name === 'system') {
+        refreshSystemUI();
+      }
+    });
+  }
+
+  function startNewGame() {
+    sfx.unlock();
+    state.year = 1;
+    state.month = 1;
+    state.week = 1;
+    state.rankIdx = 0;
+    state.gold = 2500;
+    state.trainingHeavy = true;
+    state.injuryWeeks = 0;
+    state.monster = null;
+    state.frozenMonsters = [];
+    state.ceremony = null;
+    state.battle = null;
+    goScreen('ranch');
+    showDialogue([
+      { who: 'colt', mood: '案内', text: `牧場へようこそ！いま牧場にはまだモンスターがいません。まずは「数字の神殿」へ行って数字からモンスターを誕生させましょう！` }
+    ], '牧場オープン（空き）');
+  }
+
+  function saveGame() {
+    const payload = {
+      year: state.year,
+      month: state.month,
+      week: state.week,
+      rankIdx: state.rankIdx,
+      gold: state.gold,
+      trainingHeavy: state.trainingHeavy,
+      injuryWeeks: state.injuryWeeks,
+      birthCode: state.birthCode,
+      monster: state.monster,
+      frozenMonsters: state.frozenMonsters
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  }
+
+  function loadGame() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      sfx.sfxBack();
+      showToast('セーブデータが見つかりません。');
+      return false;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      Object.assign(state, parsed);
+      if (!Array.isArray(state.frozenMonsters)) state.frozenMonsters = [];
+      if (!state.monster) state.monster = buildMonsterFromCode(state.birthCode || '19990722');
+      goScreen('ranch');
+      showDialogue([
+        { who: 'colt', mood: '笑顔', text: `おかえりなさい！${state.monster.name}も冬眠中の仲間たちも元気です。` }
+      ], 'ロード完了');
+      return true;
+    } catch (_err) {
+      sfx.sfxBack();
+      showToast('セーブデータの読み込みに失敗しました。');
+      return false;
+    }
+  }
+
+  function deleteGame() {
+    localStorage.removeItem(STORAGE_KEY);
+    sfx.sfxBack();
+    showToast('セーブデータを削除しました。');
+  }
+
+  /* =========================================================
+     6. TITLE & SHRINE NUMBER-PAD MONSTER BIRTH LOGIC
+     ========================================================= */
+  function renderTitleShowcase() {
+    const { ctx, w, h } = prepareCanvas(document.getElementById('title-banner'));
+    if (!ctx) return;
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#0369a1');
+    g.addColorStop(0.6, '#0f766e');
+    g.addColorStop(0.61, '#15803d');
+    g.addColorStop(1, '#052e16');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+
+    const sc = Math.max(1.25, h / 135);
+    const demo1 = buildMonsterFromCode('19990722');
+    const demo2 = buildMonsterFromCode('20261123');
+    demo1.animMood = 'happy';
+    demo1.animTimer = 999;
+    demo2.animMood = 'happy';
+    demo2.animTimer = 999;
+    drawMonsterSprite(ctx, demo1, w * 0.30, h * 0.62, sc, false, performance.now());
+    drawMonsterSprite(ctx, demo2, w * 0.70, h * 0.62, sc, true, performance.now());
+  }
+
+  function refreshBirthUI() {
+    document.getElementById('birth-code-box').textContent = state.birthCode || '0';
+    document.getElementById('birth-preview-species').textContent = `予想：${previewSpeciesFromCode(state.birthCode)}`;
+    const { ctx, w, h } = prepareCanvas(document.getElementById('birth-canvas'));
+    if (!ctx) return;
+    const rad = ctx.createRadialGradient(w * 0.5, h * 0.5, 8, w * 0.5, h * 0.5, Math.max(w, h) * 0.6);
+    rad.addColorStop(0, '#1d4ed8');
+    rad.addColorStop(0.6, '#0f172a');
+    rad.addColorStop(1, '#04070e');
+    ctx.fillStyle = rad;
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.strokeStyle = '#f6c453';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(w * 0.5, h * 0.5, Math.min(w, h) * 0.34, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = '#fef08a';
+    ctx.font = `bold ${Math.max(15, Math.round(h * 0.22))}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(state.birthCode || '0', w * 0.5, h * 0.5);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  function appendDigit(digitStr) {
+    if (state.birthCode.length >= 8) {
+      sfx.sfxBack();
+      return;
+    }
+    state.birthCode = (state.birthCode === '0' ? '' : state.birthCode) + String(digitStr);
+    sfx.sfxTap();
+    refreshBirthUI();
+  }
+
+  function summonMonster() {
+    const code = (state.birthCode || '19990722').replace(/\D/g, '') || '19990722';
+    const newborn = buildMonsterFromCode(code);
+    newborn.animMood = 'happy';
+    newborn.animTimer = 240;
+
+    state.ceremony = {
+      newborn,
+      startTime: performance.now(),
+      phase: 'disc_resonance', // disc_resonance -> light_surge -> monster_pose -> complete
+      chimePlayed: false,
+      posePlayed: false,
+      done: false
+    };
+
+    document.getElementById('btn-ceremony-enter-ranch').style.display = 'none';
+    document.getElementById('ceremony-stage-label').textContent = '✦ フェーズ1/3：古代の円盤共鳴';
+    document.getElementById('ceremony-caption').textContent = `円盤ナンバー【${code}】が反応し、静かな光輪が立ち上がります……`;
+
+    sfx.sfxChime();
+    goScreen('ceremony');
+    requestAnimationFrame(ceremonyLoop);
+  }
+
+  function finishBirthCeremony(skipped = false) {
+    if (!state.ceremony || !state.ceremony.newborn) {
+      goScreen('ranch');
+      return;
+    }
+    const newborn = cloneMonster(state.ceremony.newborn);
+    state.ceremony = null;
+
+    if (state.monster === null) {
+      state.monster = newborn;
+    } else if (state.frozenMonsters.length < MAX_FREEZE_SLOTS) {
+      state.frozenMonsters.push(newborn);
+    } else {
+      state.monster = newborn;
+    }
+
+    sfx.sfxBirth();
+    goScreen('ranch');
+    refreshRanchUI();
+    showDialogue([
+      { who: 'colt', mood: '感嘆', text: `光の中から【${newborn.subLabel}・${newborn.name}】が誕生しました！${skipped ? '（演出スキップ）' : ''}` },
+      { who: 'holly', mood: '大喜び！', text: `とっても生き生きしているよ！なでたり、ほめたり、トレーニングで育てていこう！` }
+    ], '✨ モンスター誕生！');
+  }
+
+  function ceremonyLoop(now = 0) {
+    if (state.screen !== 'ceremony' || !state.ceremony) return;
+    const cer = state.ceremony;
+    const elapsed = (now - cer.startTime) / 1000;
+    const canvasEl = document.getElementById('ceremony-canvas');
+    const { ctx, w, h } = prepareCanvas(canvasEl);
+
+    if (elapsed < 1.35) {
+      cer.phase = 'disc_resonance';
+      document.getElementById('ceremony-stage-label').textContent = '✦ フェーズ1/3：古代の円盤共鳴';
+      document.getElementById('ceremony-caption').textContent = `ナンバー【${cer.newborn.code}】の刻まれた円盤が強く輝き始めました……！`;
+    } else if (elapsed < 2.85) {
+      cer.phase = 'light_surge';
+      if (!cer.chimePlayed) {
+        cer.chimePlayed = true;
+        sfx.sfxChime();
+      }
+      document.getElementById('ceremony-stage-label').textContent = '✦ フェーズ2/3：溢れる光の柱';
+      document.getElementById('ceremony-caption').textContent = `円盤の中心から光の柱が立ち昇り、生命のかたちが形作られていきます……！`;
+    } else {
+      cer.phase = 'monster_pose';
+      if (!cer.posePlayed) {
+        cer.posePlayed = true;
+        cer.done = true;
+        sfx.sfxPose();
+        document.getElementById('btn-ceremony-enter-ranch').style.display = 'block';
+        syncContextBarAndLegend('ceremony');
+      }
+      document.getElementById('ceremony-stage-label').textContent = '✦ フェーズ3/3：誕生ポージング！';
+      document.getElementById('ceremony-caption').textContent = `【${cer.newborn.subLabel}・${cer.newborn.name}】がまばゆい光とともに登場しました！`;
+    }
+
+    if (ctx) {
+      const cx = w * 0.5;
+      const cy = h * 0.56;
+      const bg = ctx.createRadialGradient(cx, cy * 0.85, 10, cx, cy * 0.85, Math.max(w, h) * 0.72);
+      bg.addColorStop(0, '#312e81');
+      bg.addColorStop(0.55, '#0f172a');
+      bg.addColorStop(1, '#04070e');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, w, h);
+
+      // Shrine stone disc & rotating resonance rings
+      const discRx = Math.min(w * 0.38, 150);
+      const discRy = Math.max(14, discRx * 0.28);
+      ctx.fillStyle = '#1e293b';
+      ctx.strokeStyle = '#f6c453';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + 28, discRx, discRy, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      const ringPulse = 1 + Math.sin(now / 140) * 0.08;
+      ctx.strokeStyle = 'rgba(94, 234, 212, 0.75)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + 28, discRx * 0.78 * ringPulse, discRy * 0.78 * ringPulse, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Light pillar & converging aura particles
+      if (cer.phase === 'light_surge' || cer.phase === 'monster_pose') {
+        const beamAlpha = cer.phase === 'light_surge' ? 0.42 : 0.2;
+        const beamGrad = ctx.createLinearGradient(0, cy + 28, 0, h * 0.08);
+        beamGrad.addColorStop(0, `rgba(254, 240, 138, ${beamAlpha})`);
+        beamGrad.addColorStop(0.6, `rgba(94, 234, 212, ${beamAlpha * 0.65})`);
+        beamGrad.addColorStop(1, 'rgba(94, 234, 212, 0)');
+        ctx.fillStyle = beamGrad;
+        ctx.fillRect(cx - discRx * 0.58, h * 0.08, discRx * 1.16, cy + 20 - h * 0.08);
+      }
+
+      for (let i = 0; i < 14; i++) {
+        const ang = (Math.PI * 2 * i) / 14 + now / 520;
+        const rad = cer.phase === 'monster_pose'
+          ? 44 + Math.sin(now / 220 + i) * 8
+          : Math.max(24, 92 - (elapsed % 1.4) * 42);
+        const px = cx + Math.cos(ang) * rad;
+        const py = cy - 8 + Math.sin(ang) * (rad * 0.65);
+        ctx.fillStyle = i % 2 === 0 ? '#fef08a' : '#5eead4';
+        ctx.beginPath();
+        ctx.arc(px, py, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Reveal and pose the newly born monster
+      if (cer.phase === 'monster_pose') {
+        cer.newborn.animMood = 'happy';
+        cer.newborn.animTimer = 240;
+        const sc = Math.max(1.6, Math.min(2.4, h / 150));
+        drawMonsterSprite(ctx, cer.newborn, cx, cy - 6, sc, false, now);
+      }
+    }
+
+    requestAnimationFrame(ceremonyLoop);
+  }
+
+  /* =========================================================
+     7. MF2 HORIZONTAL STAT BARS, CARE, PRAISE/SCOLD, FREEZE & FUSION
+     ========================================================= */
+  function statRankLetter(val) {
+    if (val >= 220) return 'S';
+    if (val >= 175) return 'A';
+    if (val >= 135) return 'B';
+    if (val >= 95) return 'C';
+    if (val >= 60) return 'D';
+    return 'E';
+  }
+
+  function renderMf2HorizontalBars(m) {
+    const container = document.getElementById('mf2-stats-bars');
+    if (!container || !m) return;
+
+    const bars = [
+      { label: 'ライフ', cur: m.maxHp, cap: 300, disp: `${m.hp}/${m.maxHp}`, grad: 'linear-gradient(90deg,#16a34a,#86efac)' },
+      { label: 'ちから', cur: m.pow,   cap: 250, disp: `${m.pow}`,           grad: 'linear-gradient(90deg,#dc2626,#fca5a5)' },
+      { label: 'かしこさ',cur: m.intStat,cap: 250, disp: `${m.intStat}`,      grad: 'linear-gradient(90deg,#2563eb,#93c5fd)' },
+      { label: '命中',   cur: m.hit,   cap: 250, disp: `${m.hit}`,           grad: 'linear-gradient(90deg,#d97706,#fde047)' },
+      { label: '回避',   cur: m.spd,   cap: 250, disp: `${m.spd}`,           grad: 'linear-gradient(90deg,#0891b2,#67e8f9)' },
+      { label: '丈夫さ', cur: m.def,   cap: 250, disp: `${m.def}`,           grad: 'linear-gradient(90deg,#ea580c,#fdba74)' }
+    ];
+
+    container.innerHTML = bars.map(b => {
+      const pct = Math.max(4, Math.min(100, Math.round((b.cur / b.cap) * 100)));
+      const rk = statRankLetter(b.cur);
+      return `
+        <div class="mf2-stat-row">
+          <div class="mf2-stat-head">
+            <span>${b.label}<span class="mf2-rank-tag">${rk}</span></span>
+            <span>${b.disp}</span>
+          </div>
+          <div class="mf2-h-gauge">
+            <div class="mf2-h-fill" style="width:${pct}%;background:${b.grad};"></div>
+            <div class="mf2-h-ticks"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function refreshRanchUI() {
+    const m = state.monster;
+    document.getElementById('ranch-freeze-count').textContent = ` [冬眠:${state.frozenMonsters.length}/${MAX_FREEZE_SLOTS}]`;
+
+    if (!m) {
+      document.getElementById('ranch-m-name').textContent = '牧場：空き';
+      document.getElementById('ranch-m-sub').textContent = '（神殿で誕生 or 冬眠から呼び出し）';
+      document.getElementById('ranch-m-life').textContent = '経過: --';
+      renderMf2HorizontalBars(null);
+      document.getElementById('st-fat').textContent = '--';
+      document.getElementById('st-str').textContent = '--';
+      document.getElementById('st-loy').textContent = '--';
+      document.getElementById('st-align').textContent = '--';
+      document.getElementById('bar-fat').style.width = '0%';
+      document.getElementById('bar-str').style.width = '0%';
+      return;
+    }
+
+    document.getElementById('ranch-m-name').textContent = m.name;
+    document.getElementById('ranch-m-sub').textContent = `（${m.subLabel}・${m.trait}）`;
+    document.getElementById('ranch-freeze-count').textContent = ` [冬眠:${state.frozenMonsters.length}/${MAX_FREEZE_SLOTS}]`;
+    const injText = state.injuryWeeks > 0 ? ` [ケガ${state.injuryWeeks}週]` : '';
+    document.getElementById('ranch-m-life').textContent = `経過: ${formatElapsedAge(m.ageWeeks)}${injText}`;
+
+    renderMf2HorizontalBars(m);
+
+    document.getElementById('st-fat').textContent = m.fatigue;
+    document.getElementById('st-str').textContent = m.stress;
+    document.getElementById('st-loy').textContent = m.loyalty;
+    const alignStr = m.alignment >= 0 ? `ヨイ+${m.alignment}` : `ワル${m.alignment}`;
+    document.getElementById('st-align').textContent = alignStr;
+
+    document.getElementById('bar-fat').style.width = `${Math.min(100, m.fatigue)}%`;
+    document.getElementById('bar-str').style.width = `${Math.min(100, m.stress)}%`;
+
+    document.getElementById('btn-mode-heavy').classList.toggle('is-active', state.trainingHeavy);
+    document.getElementById('btn-mode-heavy').classList.toggle('btn-gold', state.trainingHeavy);
+    document.getElementById('btn-mode-light').classList.toggle('is-active', !state.trainingHeavy);
+    document.getElementById('btn-mode-light').classList.toggle('btn-gold', !state.trainingHeavy);
+  }
+
+  function renderRanchLoop(now = 0) {
+    if (state.screen === 'ranch') {
+      const m = state.monster;
+      if (m && m.animTimer > 0) {
+        m.animTimer--;
+        if (m.animTimer === 0) m.animMood = 'idle';
+      }
+      const { ctx, w, h } = prepareCanvas(document.getElementById('ranch-canvas'));
+      if (ctx) {
+        const sky = ctx.createLinearGradient(0, 0, 0, h);
+        sky.addColorStop(0, '#38bdf8');
+        sky.addColorStop(0.56, '#bae6fd');
+        sky.addColorStop(0.57, '#22c55e');
+        sky.addColorStop(1, '#14532d');
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, w, h);
+
+        if (m) {
+          ctx.fillStyle = 'rgba(255,255,255,0.8)';
+          ctx.font = `bold ${Math.max(10, Math.round(w * 0.028))}px sans-serif`;
+          ctx.fillText('☀ 牧場をタップ／Cキーでなでる', 10, 18);
+          const sc = Math.max(1.3, Math.min(2.1, h / 110));
+          drawMonsterSprite(ctx, m, w * 0.5, h * 0.64, sc, false, now);
+        } else {
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
+          ctx.fillRect(w * 0.14, h * 0.36, w * 0.72, 42);
+          ctx.fillStyle = '#fef08a';
+          ctx.font = `bold ${Math.max(11, Math.round(w * 0.031))}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.fillText('牧場は現在空きです —「数字の神殿」で誕生させよう！', w * 0.5, h * 0.36 + 26);
+          ctx.textAlign = 'left';
+        }
+      }
+    }
+    requestAnimationFrame(renderRanchLoop);
+  }
+
+  function petMonster() {
+    if (!requireActiveMonster('なでる') || state.dialogue.length > 0) return;
+    const m = state.monster;
+    sfx.sfxPet();
+    m.animMood = 'happy';
+    m.animTimer = 70;
+    m.loyalty = Math.min(100, m.loyalty + 3);
+    m.stress = Math.max(0, m.stress - 5);
+    refreshRanchUI();
+    showDialogue([
+      { who: 'holly', mood: 'ぽかぽか', text: `${m.name}をやさしくなでると、とっても嬉しそうに揺れているよ！忠誠度+3・ストレス-5。` }
+    ], 'スキンシップ');
+  }
+
+  function praiseMonster() {
+    if (!requireActiveMonster('ほめる') || state.dialogue.length > 0) return;
+    const m = state.monster;
+    sfx.sfxPet();
+    m.animMood = 'happy';
+    m.animTimer = 85;
+    m.loyalty = Math.min(100, m.loyalty + 5);
+    m.stress = Math.max(0, m.stress - 8);
+    m.alignment = Math.min(50, m.alignment + 3);
+    m.lastSlacked = false;
+    refreshRanchUI();
+    showDialogue([
+      { who: 'holly', mood: 'にっこり', text: `「よくやったね、${m.name}！」ってほめると、目をキラキラさせて喜んでいるよ！` }
+    ], '🌟 ほめる');
+  }
+
+  function scoldMonster() {
+    if (!requireActiveMonster('しかる') || state.dialogue.length > 0) return;
+    const m = state.monster;
+
+    if (m.stress >= 85) {
+      sfx.sfxAlert();
+      m.animMood = 'sulky';
+      m.animTimer = 110;
+      m.stress = Math.min(100, m.stress + 10);
+      m.loyalty = Math.max(0, m.loyalty - 8);
+      refreshRanchUI();
+      showDialogue([
+        { who: 'colt', mood: '心配', text: `ストレスが${m.stress}%と限界に近いです！これ以上きつく叱ると逃亡の危険が高まります。` }
+      ], '⚠ ストレス過多警告');
+      return;
+    }
+
+    sfx.sfxScold();
+    m.animMood = 'sulky';
+    m.animTimer = 90;
+    const disciplined = m.lastSlacked || m.stress >= 45;
+    m.stress = Math.min(100, m.stress + (disciplined ? 10 : 14));
+    m.loyalty = Math.min(100, m.loyalty + (disciplined ? 4 : 1));
+    m.alignment = Math.max(-50, m.alignment - 4);
+    m.lastSlacked = false;
+    refreshRanchUI();
+
+    showDialogue([
+      { who: 'colt', mood: '厳粛', text: `${m.name}を厳しく叱りました！規律が引き締まり（善悪ワル方向へ傾倒）、サボり癖が抑えられますがストレスは上昇します。` }
+    ], '💢 しかる');
+  }
+
+  function openFreezeMenu() {
+    if (state.dialogue.length > 0) return;
+    state.screen = 'subaction';
+    syncContextBarAndLegend('subaction');
+    document.querySelectorAll('.screen-view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-subaction').classList.add('active');
+    document.getElementById('subaction-title').textContent = `❄ 冬眠（フリーズ）管理（${state.frozenMonsters.length}/${MAX_FREEZE_SLOTS}体）`;
+    const list = document.getElementById('subaction-list');
+    list.innerHTML = '';
+
+    const activeCard = document.createElement('div');
+    activeCard.className = 'mf-card';
+    if (state.monster) {
+      activeCard.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-weight:900;color:#86efac;">牧場中：${state.monster.subLabel}・${state.monster.name}</div>
+            <div style="font-size:11px;color:var(--muted);">HP:${state.monster.maxHp} 力:${state.monster.pow} 賢:${state.monster.intStat} 寿:${state.monster.lifespan}週</div>
+          </div>
+          <button id="btn-do-freeze-current" type="button" class="btn btn-sm btn-cyan" ${state.frozenMonsters.length >= MAX_FREEZE_SLOTS ? 'disabled' : ''}>❄ 冬眠させる</button>
+        </div>
+      `;
+      // Freeze moves active monster into hibernation and sets state.monster = null WITHOUT auto-summoning another
+      activeCard.querySelector('#btn-do-freeze-current').onclick = () => {
+        if (state.frozenMonsters.length >= MAX_FREEZE_SLOTS || !state.monster) return;
+        const frozenOne = cloneMonster(state.monster);
+        state.frozenMonsters.push(frozenOne);
+        state.monster = null;
+        sfx.sfxTap();
+        refreshRanchUI();
+        openFreezeMenu();
+        showToast(`${frozenOne.name}を冬眠カプセルへ収めました。牧場は現在空きです。`);
+      };
+    } else {
+      activeCard.innerHTML = `
+        <div style="font-weight:900;color:#fde68a;">牧場中：なし（空き状態）</div>
+        <div style="font-size:11px;color:var(--muted);">下の冬眠リストから「牧場へ出す」を押すか、神殿で新しいモンスターを誕生させてください。</div>
+      `;
+    }
+    list.appendChild(activeCard);
+
+    if (state.frozenMonsters.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'mf-card';
+      empty.textContent = '現在冬眠中のモンスターはいません。神殿で誕生させた仲間がここに保管されます。';
+      list.appendChild(empty);
+    } else {
+      state.frozenMonsters.forEach((fm, idx) => {
+        const card = document.createElement('div');
+        card.className = 'mf-card';
+        card.style.display = 'flex';
+        card.style.justifyContent = 'space-between';
+        card.style.alignItems = 'center';
+        card.innerHTML = `
+          <div>
+            <div style="font-weight:900;color:#fef08a;">#${idx + 1} ${fm.subLabel}・${fm.name}</div>
+            <div style="font-size:11px;color:var(--cyan);">HP:${fm.maxHp} 力:${fm.pow} 賢:${fm.intStat} 寿:${fm.lifespan}週</div>
+          </div>
+          <button type="button" class="btn btn-sm btn-gold">☀ 牧場へ出す</button>
+        `;
+        // Only unfreeze into active slot when ranch is empty; never auto-swap an active monster
+        card.querySelector('button').onclick = () => {
+          if (state.monster !== null) {
+            sfx.sfxBack();
+            showToast(`牧場にすでに【${state.monster.name}】がいます！先に冬眠させて牧場を空にしてから「牧場へ出す」を押してください。`);
+            return;
+          }
+          const woken = cloneMonster(state.frozenMonsters[idx]);
+          state.frozenMonsters.splice(idx, 1);
+          woken.animMood = 'happy';
+          woken.animTimer = 110;
+          state.monster = woken;
+          sfx.sfxBirth();
+          goScreen('ranch');
+          showDialogue([
+            { who: 'holly', mood: 'わくわく', text: `冬眠から【${woken.name}】が牧場へ出てきたよ！さあ一緒にトレーニングしよう！` }
+          ], '☀ 牧場へ登場');
+        };
+        list.appendChild(card);
+      });
+    }
+  }
+
+  function openCombineMenu() {
+    if (!requireActiveMonster('モンスター合体') || state.dialogue.length > 0) return;
+    if (state.frozenMonsters.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'mf-card';
+      empty.textContent = '現在冬眠中のモンスターはいません。神殿で誕生させた仲間がここに保管されます。';
+      list.appendChild(empty);
+    } else {
+      state.frozenMonsters.forEach((fm, idx) => {
+        const card = document.createElement('div');
+        card.className = 'mf-card';
+        card.style.display = 'flex';
+        card.style.justifyContent = 'space-between';
+        card.style.alignItems = 'center';
+        card.innerHTML = `
+          <div>
+            <div style="font-weight:900;color:#fef08a;">#${idx + 1} ${fm.subLabel}・${fm.name}</div>
+            <div style="font-size:11px;color:var(--cyan);">HP:${fm.maxHp} 力:${fm.pow} 賢:${fm.intStat} 寿:${fm.lifespan}週</div>
+          </div>
+          <button type="button" class="btn btn-sm btn-gold">☀ 牧場へ出す</button>
+        `;
+        card.querySelector('button').onclick = () => {
+          const prevActive = cloneMonster(state.monster);
+          const woken = cloneMonster(state.frozenMonsters[idx]);
+          state.frozenMonsters.splice(idx, 1, prevActive);
+          state.monster = woken;
+          sfx.sfxBirth();
+          goScreen('ranch');
+          showDialogue([
+            { who: 'holly', mood: 'わくわく', text: `冬眠から【${woken.name}】が目覚めたよ！さあ一緒にトレーニングしよう！` }
+          ], '☀ 冬眠解除');
+        };
+        list.appendChild(card);
+      });
+    }
+  }
+
+  function openCombineMenu() {
+    if (!state.monster || state.dialogue.length > 0) return;
+    if (state.frozenMonsters.length === 0) {
+      sfx.sfxBack();
+      showToast('合体するには冬眠中のモンスターが1体以上必要です！神殿で別モンスターを誕生させて冬眠枠に用意しましょう。');
+      return;
+    }
+    state.combineParentIndex = null;
+    state.screen = 'subaction';
+    syncContextBarAndLegend('subaction');
+    document.querySelectorAll('.screen-view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-subaction').classList.add('active');
+    document.getElementById('subaction-title').textContent = `🧬 モンスター合体（所持金: ${state.gold}G）`;
+    const list = document.getElementById('subaction-list');
+    list.innerHTML = '';
+
+    const intro = document.createElement('div');
+    intro.className = 'mf-card';
+    intro.innerHTML = `
+      <div style="font-weight:900;color:var(--gold);">親A：牧場中の ${state.monster.subLabel}・${state.monster.name}</div>
+      <div style="font-size:11px;color:var(--muted);">合体する冬眠パートナーと隠し味を選ぶと、能力・技を引き継いだ新個体が誕生します（合体費 500G＋隠し味代）。</div>
+    `;
+    list.appendChild(intro);
+
+    state.frozenMonsters.forEach((fm, idx) => {
+      const card = document.createElement('div');
+      card.className = 'mf-card';
+      card.innerHTML = `
+        <div style="font-weight:900;color:#fef08a;margin-bottom:4px;">親B：${fm.subLabel}・${fm.name}（力:${fm.pow} / 賢:${fm.intStat} / 技:${fm.moves.length}種）</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+      `;
+      const btnRow = card.querySelector('div:last-child');
+      SECRET_FLAVORS.forEach((fl) => {
+        const totalCost = 500 + fl.cost;
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-sm btn-gold';
+        b.textContent = `${fl.name} (${totalCost}G)`;
+        b.onclick = () => executeFusion(idx, fl, totalCost);
+        btnRow.appendChild(b);
+      });
+      list.appendChild(card);
+    });
+  }
+
+  function executeFusion(frozenIdx, flavor, totalCost) {
+    if (state.gold < totalCost) {
+      sfx.sfxBack();
+      showToast(`合体費用（${totalCost}G）が足りません！`);
+      return;
+    }
+    const parentA = state.monster;
+    const parentB = state.frozenMonsters[frozenIdx];
+    if (!parentA || !parentB) return;
+
+    state.gold -= totalCost;
+    state.frozenMonsters.splice(frozenIdx, 1);
+    const child = fuseTwoMonsters(parentA, parentB, flavor);
+    state.monster = child;
+    state.injuryWeeks = 0;
+
+    sfx.sfxBirth();
+    goScreen('ranch');
+    showDialogue([
+      { who: 'colt', mood: '感嘆', text: `合体の光が収まり、${parentA.name}と${parentB.name}の力と技を受け継いだ【${child.subLabel}・${child.name}】が誕生しました！` },
+      { who: 'holly', mood: '大喜び！', text: `隠し味「${flavor.name}」の効果もしっかり効いているみたい！技数も${child.moves.length}種に引き継がれたよ！` }
+    ], '🧬 合体成功！');
+  }
+
+  function openFeedPicker() {
+    if (!requireActiveMonster('エサやり') || state.dialogue.length > 0) return;
+    state.screen = 'subaction';
+    syncContextBarAndLegend('subaction');
+    document.querySelectorAll('.screen-view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-subaction').classList.add('active');
+    document.getElementById('subaction-title').textContent = `🍖 エサを選ぶ（所持金: ${state.gold}G）`;
+    const list = document.getElementById('subaction-list');
+    list.innerHTML = '';
+
+    FEED_TYPES.forEach((fd) => {
+      const card = document.createElement('div');
+      card.className = 'mf-card';
+      card.style.display = 'flex';
+      card.style.justifyContent = 'space-between';
+      card.style.alignItems = 'center';
+      card.style.gap = '6px';
+      card.innerHTML = `
+        <div style="flex:1;">
+          <div style="font-weight:900;color:#fef08a;">${fd.name} <span style="color:var(--gold);">(${fd.price}G)</span></div>
+          <div style="color:var(--cyan);font-weight:700;">${fd.desc}</div>
+          <div style="color:var(--muted);">${fd.react}</div>
+        </div>
+        <button type="button" class="btn btn-sm btn-gold">与える</button>
+      `;
+      card.querySelector('button').onclick = () => applyFeed(fd);
+      list.appendChild(card);
+    });
+  }
+
+  function applyFeed(fd) {
+    const m = state.monster;
+    if (!m) return;
+    if (state.gold < fd.price) {
+      sfx.sfxBack();
+      showToast(`${fd.name}を買うゴールド（${fd.price}G）が足りません！`);
+      return;
+    }
+    state.gold -= fd.price;
+    sfx.sfxPet();
+    m.animMood = 'happy';
+    m.animTimer = 75;
+
+    m.fatigue = Math.max(0, Math.min(100, m.fatigue + fd.fatDelta));
+    m.stress = Math.max(0, Math.min(100, m.stress + fd.strDelta));
+    m.loyalty = Math.max(0, Math.min(100, m.loyalty + fd.loyDelta));
+    m.alignment = Math.max(-50, Math.min(50, m.alignment + fd.alignDelta));
+    m.maxHp += fd.hpDelta;
+    m.hp = Math.min(m.maxHp, m.hp + fd.hpDelta);
+
+    if (fd.statBoost) {
+      Object.entries(fd.statBoost).forEach(([k, v]) => {
+        m[k] = (m[k] || 0) + v;
+      });
+    }
+
+    updateTopHud();
+    goScreen('ranch');
+    showDialogue([
+      { who: 'holly', mood: 'にっこり', text: `【${fd.name}】をあげたよ！${fd.react}` },
+      { who: 'colt', mood: '良好', text: `効果を確認しました（${fd.desc}）。` }
+    ], 'エサやり完了');
+  }
+
+  function executeStatTraining(statKey) {
+    if (!requireActiveMonster('トレーニング') || state.dialogue.length > 0) return;
+    const m = state.monster;
+    const menu = TRAINING_MENUS[statKey];
+    if (!menu) return;
+    if (state.injuryWeeks > 0) {
+      sfx.sfxBack();
+      showToast(`現在ケガ療養中（残り${state.injuryWeeks}週）です。まずは休養で回復させましょう！`);
+      return;
+    }
+
+    const heavy = state.trainingHeavy;
+    const cost = heavy ? menu.costHeavy : menu.costLight;
+    if (state.gold < cost) {
+      sfx.sfxBack();
+      showToast(`トレーニング費用（${cost}G）が足りません！`);
+      return;
+    }
+    state.gold -= cost;
+
+    const runawayProb = heavy
+      ? Math.min(0.32, Math.max(0.02, (m.stress * 0.0032) + ((100 - m.loyalty) * 0.0022) + (m.alignment < -15 ? 0.05 : 0)))
+      : Math.min(0.08, Math.max(0.0, (m.stress > 80 ? (m.stress - 80) * 0.004 : 0)));
+
+    if (Math.random() < runawayProb) {
+      triggerRunawaySearch(heavy ? `${menu.label}（重トレ）` : `${menu.label}（軽トレ）`);
+      return;
+    }
+
+    const failProb = heavy
+      ? Math.min(0.45, Math.max(0.08, 0.10 + (m.fatigue * 0.0028) + (m.stress * 0.0022) - (m.loyalty * 0.0012)))
+      : Math.min(0.18, Math.max(0.02, 0.03 + (m.fatigue * 0.0015) + (m.stress * 0.0012) - (m.loyalty * 0.0008)));
+
+    const roll = Math.random();
+    if (roll < failProb) {
+      const subRoll = Math.random();
+      advanceWeek(1);
+
+      if (heavy && subRoll < 0.35) {
+        sfx.sfxAlert();
+        state.injuryWeeks = 2;
+        m.animMood = 'sulky';
+        m.animTimer = 100;
+        m.fatigue = Math.min(100, m.fatigue + 20);
+        m.hp = Math.max(10, Math.round(m.maxHp * 0.75));
+        refreshRanchUI();
+        showDialogue([
+          { who: 'colt', mood: '心配', text: `うっ！${menu.label}の最中に${m.name}がケガをしてしまいました！2週間の療養が必要です。` }
+        ], '⚠ トレーニング中のケガ');
+        return;
+      }
+
+      if (subRoll < 0.72) {
+        sfx.sfxBack();
+        m.animMood = 'sulky';
+        m.animTimer = 85;
+        m.lastSlacked = true;
+        m.stress = Math.max(0, m.stress - 6);
+        m.loyalty = Math.max(0, m.loyalty - 3);
+        refreshRanchUI();
+        showDialogue([
+          { who: 'holly', mood: '苦笑い', text: `あちゃー、${m.name}がサボっちゃったみたい。「しかる」で引き締めるか、様子を見てみよう。` }
+        ], '😅 サボり発生');
+        return;
+      }
+
+      sfx.sfxBack();
+      m.animMood = 'sulky';
+      m.animTimer = 75;
+      m.fatigue = Math.min(100, m.fatigue + (heavy ? 14 : 6));
+      m.stress = Math.min(100, m.stress + (heavy ? 10 : 4));
+      refreshRanchUI();
+      showDialogue([
+        { who: 'colt', mood: '残念', text: `${menu.label}のフォームが乱れてしまい、今回は能力が伸びませんでした……（1週経過）。` }
+      ], '💦 トレーニング失敗');
+      return;
+    }
+
+    sfx.sfxTrain();
+    m.animMood = 'attack';
+    m.animTimer = 65;
+    m.lastSlacked = false;
+
+    const mult = heavy ? 1.45 : 0.85;
+    const mainGain = Math.max(2, Math.round(menu.gainBase * mult));
+    const subGain = Math.max(1, Math.round(menu.subGain * mult));
+
+    if (statKey === 'hp') {
+      m.maxHp += mainGain;
+      m.hp = m.maxHp;
+    } else {
+      m[statKey] += mainGain;
+    }
+
+    if (menu.subStat === 'hp') {
+      m.maxHp += subGain;
+      m.hp = m.maxHp;
+    } else {
+      m[menu.subStat] = (m[menu.subStat] || 0) + subGain;
+    }
+
+    m.fatigue = Math.min(100, Math.max(0, m.fatigue + (heavy ? menu.fatH : menu.fatL)));
+    m.stress = Math.min(100, Math.max(0, m.stress + (heavy ? menu.strH : menu.strL)));
+
+    advanceWeek(1);
+    refreshRanchUI();
+
+    const statNames = { hp: 'ライフ', pow: 'ちから', intStat: 'かしこさ', hit: '命中', spd: '回避', def: '丈夫さ' };
+    showDialogue([
+      { who: 'colt', mood: '手応えあり', text: `${menu.msg} ${statNames[statKey]}+${mainGain}・${statNames[menu.subStat]}+${subGain}（${heavy ? '重トレ' : '軽トレ'}）` }
+    ], '✨ トレーニング成功');
+  }
+
+  function doRest() {
+    if (!requireActiveMonster('休養') || state.dialogue.length > 0) return;
+    const m = state.monster;
+    sfx.sfxPet();
+    if (state.injuryWeeks > 0) state.injuryWeeks = Math.max(0, state.injuryWeeks - 1);
+    m.fatigue = Math.max(0, m.fatigue - 38);
+    m.stress = Math.max(0, m.stress - 28);
+    m.hp = m.maxHp;
+    m.animMood = 'happy';
+    m.animTimer = 65;
+    advanceWeek(1);
+    refreshRanchUI();
+    showDialogue([
+      { who: 'colt', mood: '穏やか', text: `1週間しっかり休養しました。疲労とストレスが大きく回復${state.injuryWeeks === 0 ? 'し、ケガも完治' : `（ケガ療養あと${state.injuryWeeks}週）`}しました！` }
+    ], '休養');
+  }
+
+  function openErrantryPicker() {
+    if (!requireActiveMonster('修行') || state.dialogue.length > 0) return;
+    const m = state.monster;
+    if (state.injuryWeeks > 0) {
+      sfx.sfxBack();
+      showToast(`ケガ療養中（残り${state.injuryWeeks}週）は修行に出られません！`);
+      return;
+    }
+    state.screen = 'subaction';
+    syncContextBarAndLegend('subaction');
+    document.querySelectorAll('.screen-view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-subaction').classList.add('active');
+    document.getElementById('subaction-title').textContent = `⚔️ 修行地・習得技を選択（所持金: ${state.gold}G / 技枠:${m.moves.length}/4）`;
+    const list = document.getElementById('subaction-list');
+    list.innerHTML = '';
+
+    ERRANTRY_PLACES.forEach((pl) => {
+      const metReq = pl.canGo(m);
+      const card = document.createElement('div');
+      card.className = 'mf-card';
+      card.innerHTML = `
+        <div style="font-weight:900;color:#fef08a;">${pl.name} <span style="color:var(--cyan);">(${pl.weeks}週 / ${pl.cost}G)</span></div>
+        <div style="color:${metReq ? '#86efac' : '#fda4af'};font-weight:700;margin-bottom:4px;">条件: ${pl.reqLabel}</div>
+        <div style="display:flex;flex-direction:column;gap:4px;"></div>
+      `;
+      const moveBox = card.querySelector('div:last-child');
+      pl.learnable.forEach((cand) => {
+        const alreadyLearned = m.moves.some(mv => mv.id === cand.id);
+        const rowBtn = document.createElement('button');
+        rowBtn.type = 'button';
+        rowBtn.className = 'btn btn-sm btn-gold';
+        rowBtn.style.textAlign = 'left';
+        rowBtn.disabled = !metReq || alreadyLearned;
+        rowBtn.textContent = alreadyLearned
+          ? `【${cand.name}】（習得済み・${statTypeLabel(cand.statType)}・射程${cand.range}・威力${cand.power}）`
+          : `【${cand.name}】習得（${statTypeLabel(cand.statType)}・射程${cand.range}・威力${cand.power}・G${cand.gutsCost}）`;
+        rowBtn.onclick = () => runErrantryPlace(pl, cand);
+        moveBox.appendChild(rowBtn);
+      });
+      list.appendChild(card);
+    });
+  }
+
+  function finalizeErrantryMove(pl, candMove, overwriteIndex = null) {
+    const m = state.monster;
+    if (!m) return;
+
+    const existingIdx = m.moves.findIndex(mv => mv.id === candMove.id);
+    let learnText = '';
+    if (existingIdx >= 0) {
+      learnText = `【${candMove.name}】（${statTypeLabel(candMove.statType)}・射程${candMove.range}）はすでに習得済みでした。`;
+    } else if (m.moves.length < 4) {
+      m.moves.push({ ...candMove, uses: 0 });
+      learnText = `新しい技【${candMove.name}】（${statTypeLabel(candMove.statType)}・射程${candMove.range}・威力${candMove.power}）を習得した！`;
+    } else {
+      const idx = Math.max(0, Math.min(3, overwriteIndex ?? 0));
+      const forgotten = m.moves[idx];
+      m.moves[idx] = { ...candMove, uses: 0 };
+      learnText = `【${forgotten.name}】を忘れて、新しい技【${candMove.name}】（${statTypeLabel(candMove.statType)}・射程${candMove.range}・威力${candMove.power}）を上書き習得した！`;
+    }
+
+    m.moves = getSortedMoves(m);
+    state.pendingMoveOverwrite = null;
+    m.fatigue = Math.min(100, m.fatigue + pl.weeks * 9);
+    m.stress = Math.min(100, m.stress + pl.weeks * 7);
+    advanceWeek(pl.weeks);
+    refreshRanchUI();
+
+    sfx.sfxBirth();
+    m.animMood = 'happy';
+    m.animTimer = 85;
+    goScreen('ranch');
+    showDialogue([
+      { who: 'colt', mood: '感嘆', text: `${pl.name}での${pl.weeks}週間の修行から無事帰還！${learnText}` },
+      { who: 'holly', mood: 'わくわく', text: `4枠固定の技構成が整ったよ！次の大会バトルで試してみよう！` }
+    ], '⚔️ 修行達成');
+  }
+
+  function openMoveOverwritePicker(pl, candMove) {
+    const m = state.monster;
+    if (!m) return;
+    state.pendingMoveOverwrite = { pl, candMove };
+    state.screen = 'subaction';
+    syncContextBarAndLegend('subaction');
+    document.querySelectorAll('.screen-view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-subaction').classList.add('active');
+    document.getElementById('subaction-title').textContent = `⚠ 技枠4/4満杯：忘れる技を選択`;
+    const list = document.getElementById('subaction-list');
+    list.innerHTML = '';
+
+    const notice = document.createElement('div');
+    notice.className = 'mf-card';
+    notice.innerHTML = `
+      <div style="font-weight:900;color:#fef08a;">新技【${candMove.name}】（${statTypeLabel(candMove.statType)}・射程${candMove.range}・威力${candMove.power}）を覚えます</div>
+      <div style="font-size:11px;color:#fda4af;">※モンスターファーム2仕様により、忘れた技は後から元に戻せません。上書きする1つを選んでください。</div>
+    `;
+    list.appendChild(notice);
+
+    m.moves.forEach((mv, idx) => {
+      const card = document.createElement('div');
+      card.className = 'mf-card';
+      card.style.display = 'flex';
+      card.style.justifyContent = 'space-between';
+      card.style.alignItems = 'center';
+      card.style.gap = '6px';
+      card.innerHTML = `
+        <div>
+          <div style="font-weight:900;color:#fff;">${mv.name}</div>
+          <div style="font-size:11px;color:var(--cyan);">${statTypeLabel(mv.statType)}・射程${mv.range}・威力${mv.power}・G${mv.gutsCost}</div>
+        </div>
+        <button type="button" class="btn btn-sm btn-rose">これを忘れる</button>
+      `;
+      card.querySelector('button').onclick = () => finalizeErrantryMove(pl, candMove, idx);
+      list.appendChild(card);
+    });
+  }
+
+  function runErrantryPlace(pl, chosenMove = null) {
+    const m = state.monster;
+    if (!m) return;
+    const candMove = chosenMove || pl.learnable[0];
+    if (state.gold < pl.cost) {
+      sfx.sfxBack();
+      showToast(`修行費用（${pl.cost}G）が足りません！`);
+      return;
+    }
+    state.gold -= pl.cost;
+
+    const lostProb = Math.min(0.45, Math.max(0.06, pl.lostBase + (m.stress * 0.0022) + ((100 - m.loyalty) * 0.0018) - (m.intStat * 0.0004)));
+    if (Math.random() < lostProb) {
+      goScreen('ranch');
+      triggerLostSearch(pl.name);
+      return;
+    }
+
+    const alreadyHas = m.moves.some(mv => mv.id === candMove.id);
+    if (!alreadyHas && m.moves.length >= 4) {
+      openMoveOverwritePicker(pl, candMove);
+      return;
+    }
+
+    finalizeErrantryMove(pl, candMove, null);
+  }
+
+  function runErrantryPlace(pl) {
+    const m = state.monster;
+    if (!m) return;
+    if (state.gold < pl.cost) {
+      sfx.sfxBack();
+      showToast(`修行費用（${pl.cost}G）が足りません！`);
+      return;
+    }
+    state.gold -= pl.cost;
+    goScreen('ranch');
+
+    const lostProb = Math.min(0.45, Math.max(0.06, pl.lostBase + (m.stress * 0.0022) + ((100 - m.loyalty) * 0.0018) - (m.intStat * 0.0004)));
+    if (Math.random() < lostProb) {
+      triggerLostSearch(pl.name);
+      return;
+    }
+
+    sfx.sfxBirth();
+    m.animMood = 'happy';
+    m.animTimer = 85;
+
+    const existing = m.moves.find(mv => mv.id === pl.move.id);
+    let learnText = '';
+    if (existing) {
+      existing.level++;
+      existing.basePower += 10;
+      learnText = `【${existing.name}】がLv.${existing.level}へさらに磨き抜かれた！`;
+    } else {
+      m.moves.push({ ...pl.move });
+      m.moves = getSortedMoves(m);
+      learnText = `新しい技【${pl.move.name}】（射程${pl.move.range}・威力${pl.move.basePower}）を習得した！`;
+    }
+
+    m.fatigue = Math.min(100, m.fatigue + pl.weeks * 9);
+    m.stress = Math.min(100, m.stress + pl.weeks * 7);
+    advanceWeek(pl.weeks);
+    refreshRanchUI();
+
+    showDialogue([
+      { who: 'colt', mood: '感嘆', text: `${pl.name}での${pl.weeks}週間の修行から無事帰還！${learnText}` },
+      { who: 'holly', mood: 'わくわく', text: `すごいよ${m.name}！次の大会バトルで新しい技を試してみよう！` }
+    ], '⚔️ 修行達成');
+  }
+
+  function doAdventure() {
+    if (!requireActiveMonster('冒険') || state.dialogue.length > 0) return;
+    const m = state.monster;
+    if (state.injuryWeeks > 0) {
+      sfx.sfxBack();
+      showToast(`ケガ療養中（残り${state.injuryWeeks}週）は冒険に出られません！`);
+      return;
+    }
+
+    const lostChance = Math.min(0.36, Math.max(0.07, 0.12 + (m.stress * 0.002) + ((100 - m.loyalty) * 0.0018)));
+    if (Math.random() < lostChance) {
+      triggerLostSearch('冒険ルート（古代の霧の森）');
+      return;
+    }
+
+    sfx.sfxBirth();
+    const foundGold = 500 + state.rankIdx * 250;
+    state.gold += foundGold;
+    m.pow += 4;
+    m.intStat += 4;
+    m.fatigue = Math.min(100, m.fatigue + 18);
+    m.animMood = 'happy';
+    m.animTimer = 70;
+    advanceWeek(2);
+    refreshRanchUI();
+    showDialogue([
+      { who: 'holly', mood: 'わくわく', text: `冒険で秘宝の金貨【+${foundGold}G】と古代の知識を発見！ちから・かしこさもアップしたよ！` }
+    ], '冒険・探索');
+  }
+
+  function triggerLostSearch(placeLabel) {
+    const m = state.monster;
+    sfx.sfxAlert();
+    m.animMood = 'sulky';
+    m.animTimer = 110;
+
+    const lostWeeks = 2;
+    const baseSearchCost = 350 + state.rankIdx * 120;
+    const actualSearchCost = Math.min(state.gold, baseSearchCost);
+    state.gold = Math.max(0, state.gold - actualSearchCost);
+    m.stress = Math.min(100, m.stress + 15);
+    m.fatigue = Math.min(100, m.fatigue + 12);
+    advanceWeek(lostWeeks);
+    refreshRanchUI();
+
+    setTimeout(() => { sfx.sfxSearch(); }, 280);
+
+    showDialogue([
+      { who: 'colt', mood: '青ざめる', text: `大変です！${m.name}が【${placeLabel}】で迷子になってしまいました！` },
+      { who: 'holly', mood: '心配そう', text: `${lostWeeks}週間かけて捜索し、ようやく見つけたよ……！捜索費${actualSearchCost}Gがかかったね。` }
+    ], '⚠ 迷子＆捜索イベント');
+  }
+
+  function triggerRunawaySearch(reasonLabel) {
+    const m = state.monster;
+    sfx.sfxAlert();
+    m.animMood = 'sulky';
+    m.animTimer = 120;
+
+    const brokeHut = m.pow >= 75 || m.stress >= 70;
+    const lostWeeks = brokeHut ? 3 : 2;
+    const searchFee = 400 + state.rankIdx * 150;
+    const repairFee = brokeHut ? (350 + state.rankIdx * 100) : 0;
+    const paid = Math.min(state.gold, searchFee + repairFee);
+    state.gold = Math.max(0, state.gold - paid);
+
+    m.loyalty = Math.max(0, m.loyalty - 10);
+    m.stress = Math.max(10, m.stress - 10);
+    m.fatigue = Math.min(100, m.fatigue + 20);
+    advanceWeek(lostWeeks);
+    refreshRanchUI();
+
+    setTimeout(() => { sfx.sfxSearch(); }, 300);
+
+    showDialogue([
+      { who: 'colt', mood: '驚愕', text: `${m.name}が${reasonLabel}のプレッシャーで逃げ出してしまいました！捜索費${brokeHut ? `＋小屋修理費計${paid}G` : `${paid}G`}と${lostWeeks}週間を要しました。` },
+      { who: 'holly', mood: '困り顔', text: `無理をさせすぎたかな？「ほめる」やエサ・休養で落ち着かせよう。` }
+    ], '🚨 逃亡＆捜索イベント');
+  }
+
+  /* =========================================================
+     8. 1v1 DISTANCE & GUTS BATTLE WITH INTRO FOCUS, COUNTDOWN & VICTORY POSING
+     ========================================================= */
+  const RIVAL_ARCHETYPES = [
+    {
+      key: 'rush_fang',
+      title: '突撃の牙',
+      name: 'ブレイズ・ライガー',
+      speciesId: 'liger',
+      color: '#fb923c',
+      accent: '#fef08a',
+      tint: '#f97316',
+      styleLabel: '接近パワー型',
+      weights: { hp: 1.05, pow: 1.24, intStat: 0.72, hit: 1.02, spd: 1.06, def: 0.96 },
+      preferredIntents: ['advance', 'advance', 'hold', 'retreat'],
+      moves: ['gale_fang', 'dash_strike', 'heavy_slam', 'claw']
+    },
+    {
+      key: 'arcane_seer',
+      title: '星詠みの魔導士',
+      name: 'ルナ・ピクシー',
+      speciesId: 'pixie',
+      color: '#a78bfa',
+      accent: '#fde047',
+      tint: '#c084fc',
+      styleLabel: '遠中かしこさ型',
+      weights: { hp: 0.88, pow: 0.68, intStat: 1.30, hit: 1.16, spd: 1.18, def: 0.82 },
+      preferredIntents: ['retreat', 'hold', 'retreat', 'advance'],
+      moves: ['astral_beam', 'mind_pulse', 'psycho_burst', 'nova_touch']
+    },
+    {
+      key: 'iron_bastion',
+      title: '鉄壁の岩塊',
+      name: 'グラニット・ゴーレム',
+      speciesId: 'golem',
+      color: '#a16207',
+      accent: '#fbbf24',
+      tint: '#b45309',
+      styleLabel: '超耐久ヘビー級',
+      weights: { hp: 1.32, pow: 1.18, intStat: 0.62, hit: 0.84, spd: 0.72, def: 1.30 },
+      preferredIntents: ['advance', 'hold', 'advance', 'retreat'],
+      moves: ['snipe_arrow', 'earth_tremor', 'heavy_slam', 'mountain_crush']
+    },
+    {
+      key: 'gale_duelist',
+      title: '疾風の剣客',
+      name: 'ゼファー・ランナー',
+      speciesId: 'roadrunner',
+      color: '#60a5fa',
+      accent: '#facc15',
+      tint: '#38bdf8',
+      styleLabel: '高速ステップ＆命中型',
+      weights: { hp: 0.96, pow: 0.94, intStat: 0.88, hit: 1.24, spd: 1.26, def: 0.88 },
+      preferredIntents: ['advance', 'retreat', 'hold', 'advance'],
+      moves: ['snipe_arrow', 'sonic_wave', 'gale_fang', 'claw']
+    },
+    {
+      key: 'crimson_wyrm',
+      title: '業火の覇者',
+      name: 'イグニス・ドラゴン',
+      speciesId: 'dragon',
+      color: '#ef4444',
+      accent: '#facc15',
+      tint: '#dc2626',
+      styleLabel: '万能重火力型',
+      weights: { hp: 1.22, pow: 1.22, intStat: 1.14, hit: 0.98, spd: 0.92, def: 1.14 },
+      preferredIntents: ['advance', 'hold', 'retreat', 'advance'],
+      moves: ['meteor_orb', 'magma_flare', 'earth_tremor', 'mountain_crush']
+    },
+    {
+      key: 'emerald_trickster',
+      title: '深緑の変幻者',
+      name: 'ミント・ゲル',
+      speciesId: 'gel',
+      color: '#34d399',
+      accent: '#a7f3d0',
+      tint: '#10b981',
+      styleLabel: 'ガッツ削り＆粘り型',
+      weights: { hp: 1.18, pow: 0.84, intStat: 1.12, hit: 1.02, spd: 0.94, def: 1.12 },
+      preferredIntents: ['hold', 'retreat', 'advance', 'hold'],
+      moves: ['far_shot', 'howl_roar', 'dash_strike', 'nova_touch']
+    },
+    {
+      key: 'sunburst_brawler',
+      title: '陽だまりの拳士',
+      name: 'サンディ・ハム',
+      speciesId: 'hare',
+      color: '#fdba74',
+      accent: '#f87171',
+      tint: '#fb923c',
+      styleLabel: '近接ラッシュ型',
+      weights: { hp: 1.04, pow: 1.12, intStat: 0.82, hit: 1.08, spd: 1.18, def: 0.94 },
+      preferredIntents: ['advance', 'advance', 'retreat', 'hold'],
+      moves: ['far_shot', 'sonic_wave', 'gale_fang', 'heavy_slam']
+    },
+    {
+      key: 'shadow_suezou',
+      title: '宵闇の異端児',
+      name: 'ノクス・スエゾー',
+      speciesId: 'suezou',
+      color: '#38bdf8',
+      accent: '#fef08a',
+      tint: '#6366f1',
+      styleLabel: '変則かしこさ＆奇襲型',
+      weights: { hp: 1.02, pow: 0.92, intStat: 1.22, hit: 1.12, spd: 1.04, def: 0.92 },
+      preferredIntents: ['retreat', 'advance', 'hold', 'retreat'],
+      moves: ['astral_beam', 'howl_roar', 'psycho_burst', 'claw']
+    }
+  ];
+
+  function buildTournamentOpponent(rankIdx, monster) {
+    const rankName = RANKS[rankIdx] || 'E';
+    const candidates = RIVAL_ARCHETYPES.filter((a) => a.key !== state.lastOpponentKey);
+    const pool = candidates.length > 0 ? candidates : RIVAL_ARCHETYPES;
+    const arch = pool[Math.floor(Math.random() * pool.length)];
+    state.lastOpponentKey = arch.key;
+
+    const ageScale = 1 + Math.min(0.45, ((monster && monster.ageWeeks) || 0) * 0.003);
+    const rankScale = (0.72 + rankIdx * 0.34) * ageScale;
+    const jitter = () => 0.9 + Math.random() * 0.2; // +/-10% per-match variance
+    const battleHpScale = 6;
+
+    const baseHp = Math.round(115 * rankScale * arch.weights.hp * jitter());
+    const maxBattleHp = Math.max(150, baseHp * battleHpScale);
+    const moves = getSortedMoves({
+      moves: arch.moves.map((id) => createMoveInstance(id))
+    });
+
+    return {
+      archetypeKey: arch.key,
+      title: arch.title,
+      styleLabel: arch.styleLabel,
+      preferredIntents: arch.preferredIntents,
+      name: `${rankName}冠・${arch.name}`,
+      speciesId: arch.speciesId,
+      color: arch.color,
+      accent: arch.accent,
+      tint: arch.tint,
+      hp: maxBattleHp,
+      maxHp: maxBattleHp,
+      pow: Math.max(24, Math.round(78 * rankScale * arch.weights.pow * jitter())),
+      intStat: Math.max(24, Math.round(82 * rankScale * arch.weights.intStat * jitter())),
+      hit: Math.max(28, Math.round(78 * rankScale * arch.weights.hit * jitter())),
+      spd: Math.max(24, Math.round(72 * rankScale * arch.weights.spd * jitter())),
+      def: Math.max(22, Math.round(64 * rankScale * arch.weights.def * jitter())),
+      guts: 15,
+      moves,
+      animMood: 'idle',
+      animTimer: 0
+    };
+  }
+
+  function startTournamentBattle() {
+    if (!requireActiveMonster('公式大会') || state.dialogue.length > 0) return;
+    const m = state.monster;
+    const rankName = RANKS[state.rankIdx];
+    const battleHpScale = 6;
+    const playerBattleMaxHp = Math.max(120, Math.round(m.maxHp * battleHpScale));
+    const playerBattleHp = Math.max(120, Math.round(m.hp * battleHpScale));
+    const enemy = buildTournamentOpponent(state.rankIdx, m);
+
+    const now = performance.now();
+    state.battle = {
+      rankName,
+      range: 2, // 1:超近, 2:近, 3:中, 4:遠 (smaller = closer, larger = farther)
+      battleMaxHp: playerBattleMaxHp,
+      battleHp: playerBattleHp,
+      selectedMoveId: null,
+      lastFireTapTime: 0,
+      guts: 25,
+      enemy,
+      enemyIntent: enemy.preferredIntents[0] || 'advance',
+      nextIntentAt: now + 950,
+      playerMoveAnim: { dir: 0, start: 0 }, // dir: -1 left, +1 right
+      enemyMoveAnim: { dir: 0, start: 0 },  // dir: -1 left, +1 right
+      moveCallout: null, // { text, subText, start }
+      fx: null,
+      over: false,
+      resultWon: false,
+      phase: 'intro_player', // intro_player -> intro_enemy -> countdown -> fighting -> victory_player -> defeat_or_giveup
+      phaseStart: now,
+      lastTickNum: 99,
+      poseSfxPlayed: false,
+      logs: [
+        `${rankName}ランク大会入場！${m.name} vs ${enemy.name}（${enemy.styleLabel}・HP:${enemy.hp}）`,
+        `相手得意技：${enemy.moves.map((mv) => `${mv.name}[射${mv.range}]`).join(' / ')}`
+      ]
+    };
+
+    goScreen('battle');
+    sfx.playBgm('battle');
+    sfx.sfxPose();
+    renderBattleControls();
+    requestAnimationFrame(battleLoop);
+  }
+
+  function pushLog(msg) {
+    if (!state.battle) return;
+    state.battle.logs.push(msg);
+    if (state.battle.logs.length > 16) state.battle.logs.shift();
+    const el = document.getElementById('battle-log');
+    if (!el) return;
+    el.innerHTML = state.battle.logs.map(l => `<div>・${l}</div>`).join('');
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function spawnBattleFx(kind, side, label) {
+    if (!state.battle) return;
+    state.battle.fx = { kind, side, label, p: 0 };
+  }
+
+  // Strictly pick ONE focused technique based on current distance range (ordered far 4 -> near 1)
+  function resolveFocusedMove(sortedMoves, currentRange) {
+    if (!Array.isArray(sortedMoves) || sortedMoves.length === 0) return null;
+    const exactMatch = sortedMoves.find(mv => mv.range === currentRange);
+    if (exactMatch) return exactMatch;
+    return [...sortedMoves].sort((a, b) => Math.abs(a.range - currentRange) - Math.abs(b.range - currentRange))[0];
+  }
+
+  function renderBattleControls() {
+    const b = state.battle;
+    const m = state.monster;
+    if (!b || !m) return;
+    const sortedMoves = getSortedMoves(m); // Farthest range (4) first -> Closest range (1) last
+    const focusedMove = resolveFocusedMove(sortedMoves, b.range);
+    b.selectedMoveId = focusedMove ? focusedMove.id : null;
+
+    const rangeNames = { 1: '超近(1)', 2: '近(2)', 3: '中(3)', 4: '遠(4)' };
+    const intentLabels = { advance: '接近狙い', retreat: '後退狙い', hold: '様子見' };
+    const canFight = b.phase === 'fighting' && !b.over;
+    document.getElementById('b-header-match').textContent = `🏆 ${b.rankName}ランク公式戦`;
+    document.getElementById('b-header-range').textContent = `距離:${rangeNames[b.range]} / 相手:${intentLabels[b.enemyIntent] || '様子見'}`;
+
+    document.getElementById('b-my-hp-txt').textContent = `${m.name} HP: ${b.battleHp}/${b.battleMaxHp}`;
+    document.getElementById('b-guts-txt').textContent = `ガッツ: ${Math.floor(b.guts)}/100`;
+    document.getElementById('b-en-hp-txt').textContent = `相手 HP: ${b.enemy.hp}/${b.enemy.maxHp}`;
+    document.getElementById('b-guts-bar').style.width = `${Math.min(100, b.guts)}%`;
+
+    const fireBtn = document.getElementById('dock-btn-fire-move');
+    if (fireBtn) {
+      fireBtn.textContent = focusedMove
+        ? `⚡ 技発動：${focusedMove.name} (G${focusedMove.gutsCost}) [Enter]`
+        : '⚡ 技発動 [Enter]';
+    }
+
+    const grid = document.getElementById('b-move-list');
+    grid.innerHTML = '';
+
+    sortedMoves.forEach((mv) => {
+      const row = document.createElement('div');
+      const isFocused = focusedMove && mv.id === focusedMove.id;
+      const enoughGuts = b.guts >= mv.gutsCost;
+      row.className = `move-row-item ${isFocused ? 'is-focused' : ''}`;
+      const gutsTag = enoughGuts ? `G${mv.gutsCost}` : `G${mv.gutsCost}不足`;
+      row.innerHTML = `${isFocused ? '🎯 ' : ''}${mv.name}<br><span>${statTypeLabel(mv.statType)}・射${mv.range}・${gutsTag}${isFocused && canFight ? '・対象' : ''}</span>`;
+      grid.appendChild(row);
+    });
+  }
+
+  function triggerFocusedMove() {
+    const b = state.battle;
+    const m = state.monster;
+    if (!b || !m || b.over || b.phase !== 'fighting') return;
+    const sortedMoves = getSortedMoves(m);
+    const mv = resolveFocusedMove(sortedMoves, b.range);
+    if (!mv) return;
+    if (b.guts < mv.gutsCost) {
+      sfx.sfxBack();
+      showToast(`フォーカス中の【${mv.name}】はガッツが足りません（必要:${mv.gutsCost} / 現在:${Math.floor(b.guts)}）。`);
+      return;
+    }
+    executePlayerMove(mv);
+  }
+
+  // Player is on LEFT; Retreat moves away toward FAR (+1 range), Advance moves closer toward NEAR (-1 range)
+  // Opponent has autonomous movement intent ('advance' => moves left toward player, 'retreat' => moves right away, 'hold' => stays)
+  function chooseEnemyIntent(b) {
+    const en = b.enemy;
+    const prefs = Array.isArray(en.preferredIntents) && en.preferredIntents.length > 0
+      ? en.preferredIntents
+      : ['advance', 'hold', 'retreat'];
+    const r = Math.random();
+    const spdFactor = Math.min(0.18, ((en.spd || 50) - 50) * 0.002);
+
+    if (en.guts < 20) {
+      if (b.range <= 2 && r < 0.55) return 'retreat';
+      if (r < 0.78) return 'hold';
+      return prefs[0] || 'advance';
+    }
+
+    if (r < 0.58 + spdFactor) {
+      const idx = b.range >= 3 ? 0 : (b.range === 1 ? 2 : Math.floor(Math.random() * prefs.length));
+      return prefs[idx % prefs.length];
+    }
+
+    if (b.range >= 3) {
+      if (r < 0.78) return 'advance';
+      return 'hold';
+    }
+
+    if (r < 0.72) return 'advance';
+    if (r < 0.90) return 'retreat';
+    return 'hold';
+  }
+
+  function adjustRange(delta) {
+    const b = state.battle;
+    const m = state.monster;
+    if (!b || !m || b.over || b.phase !== 'fighting') return;
+
+    const now = performance.now();
+    const prevRange = b.range;
+    const playerWantsCloser = delta < 0; // player on left: right (+1 visual dir) = closer
+    const playerDelta = playerWantsCloser ? -1 : 1;
+
+    // Refresh enemy intent if due so opponent's decision feels alive and reactive
+    if (!b.enemyIntent || now >= b.nextIntentAt) {
+      b.enemyIntent = chooseEnemyIntent(b);
+      b.nextIntentAt = now + 950 + Math.random() * 550;
+    }
+
+    const enemyIntent = b.enemyIntent;
+    // Enemy is on right: moving closer means moving left (-1), moving back means moving right (+1)
+    let enemyDelta = 0;
+    if (enemyIntent === 'advance') {
+      enemyDelta = b.range > 1 ? -1 : 0;
+    } else if (enemyIntent === 'retreat') {
+      enemyDelta = b.range < 4 ? 1 : 0;
+    }
+
+    // Visual step/dash feedback even if clamped at arena edge or cancelled out
+    const playerCanStep = (playerDelta < 0 && b.range > 1) || (playerDelta > 0 && b.range < 4);
+    b.playerMoveAnim = {
+      dir: playerCanStep ? (playerWantsCloser ? 1 : -1) : 0,
+      start: now
+    };
+    b.enemyMoveAnim = {
+      dir: enemyDelta !== 0 ? enemyDelta : 0,
+      start: now
+    };
+
+    const nextRange = Math.max(1, Math.min(4, b.range + playerDelta + enemyDelta));
+    b.range = nextRange;
+    sfx.sfxStep();
+
+    const playerActionText = playerWantsCloser ? '自軍が接近' : '自軍が後退';
+    let enemyActionText = '相手は様子見';
+    if (enemyIntent === 'advance') enemyActionText = enemyDelta !== 0 ? '相手も接近！' : '相手は前へ圧をかける';
+    else if (enemyIntent === 'retreat') enemyActionText = enemyDelta !== 0 ? '相手が後退！' : '相手は下がりきっている';
+
+    let resultSummary = '';
+    if (nextRange === prevRange) {
+      if (playerWantsCloser && enemyIntent === 'retreat') {
+        resultSummary = `両者同方向移動で距離維持【${nextRange}】`;
+      } else if (!playerWantsCloser && enemyIntent === 'advance') {
+        resultSummary = `後退と接近が噛み合い距離維持【${nextRange}】`;
+      } else {
+        resultSummary = `端のため距離維持【${nextRange}】`;
+      }
+    } else if (nextRange < prevRange) {
+      resultSummary = `距離が縮まった（${prevRange}→${nextRange}）`;
+    } else {
+      resultSummary = `距離が広がった（${prevRange}→${nextRange}）`;
+    }
+
+    b.moveCallout = {
+      text: `${playerActionText} × ${enemyActionText}`,
+      subText: resultSummary,
+      start: now
+    };
+
+    pushLog(`${playerActionText}・${enemyActionText} → ${resultSummary}`);
+
+    // Queue next autonomous intent after this exchange
+    b.enemyIntent = chooseEnemyIntent(b);
+    b.nextIntentAt = now + 900 + Math.random() * 500;
+
+    renderBattleControls();
+  }
+
+  function executePlayerMove(mv) {
+    const b = state.battle;
+    const m = state.monster;
+    if (!b || !m || b.over || b.phase !== 'fighting') return;
+
+    b.guts = Math.max(0, b.guts - mv.gutsCost);
+    mv.uses = (mv.uses || 0) + 1;
+
+    m.animMood = 'attack';
+    m.animTimer = 26;
+    sfx.playMoveSfx(mv.sfxType || mv.fxType);
+
+    // Hit check using monster HIT + move hitBonus vs enemy SPD
+    const hitChance = Math.max(25, Math.min(98, 72 + (mv.hitBonus || 0) + (m.hit - b.enemy.spd) * 0.35));
+    if (Math.random() * 100 > hitChance) {
+      spawnBattleFx('sonic', 'enemy', `${mv.name} ミス!`);
+      pushLog(`${m.name} の【${mv.name}】は外れた！（命中率${Math.round(hitChance)}%）`);
+      renderBattleControls();
+      return;
+    }
+
+    // Stat scaling strictly separated between 'pow' (ちから技) and 'int' (かしこさ技) with critical chance
+    const isIntMove = mv.statType === 'int';
+    const atkVal = isIntMove ? m.intStat : m.pow;
+    const defFactor = isIntMove ? (b.enemy.def * 0.16 + b.enemy.spd * 0.12) : (b.enemy.def * 0.34);
+    const critChance = Math.max(4, Math.min(28, 6 + (m.hit - b.enemy.spd) * 0.12));
+    const isCrit = Math.random() * 100 < critChance;
+    const critMult = isCrit ? 1.35 : 1.0;
+    const gutsBonus = 1 + (b.guts / 100) * 0.45;
+    const dmg = Math.max(8, Math.round(((mv.power || 28) + atkVal * 0.52 - defFactor) * gutsBonus * critMult));
+
+    b.enemy.hp = Math.max(0, b.enemy.hp - dmg);
+    b.enemy.animMood = 'hit';
+    b.enemy.animTimer = 26;
+
+    if ((mv.gutsDrain || 0) > 0) {
+      const drained = Math.min(Math.floor(b.enemy.guts), mv.gutsDrain);
+      b.enemy.guts = Math.max(0, b.enemy.guts - mv.gutsDrain);
+      if (drained > 0) pushLog(`⚡ 相手ガッツを ${drained} 削った！`);
+    }
+    if ((mv.knockback || 0) > 0 && b.range < 4) {
+      const prevR = b.range;
+      b.range = Math.min(4, b.range + mv.knockback);
+      if (b.range > prevR) pushLog(`💥 吹き飛ばし効果！距離 ${prevR} → ${b.range}`);
+    }
+
+    spawnBattleFx(mv.fxType || 'slash', 'enemy', `${mv.name}${isCrit ? ' 会心!' : ''} -${dmg}!`);
+    pushLog(`${m.name} の【${mv.name}】（${statTypeLabel(mv.statType)}${isCrit ? '・会心' : ''}）！相手に ${dmg} ダメージ！`);
+
+    renderBattleControls();
+    if (b.enemy.hp <= 0) {
+      enterVictoryPose();
+    }
+  }
+
+  function enemyAct() {
+    const b = state.battle;
+    const m = state.monster;
+    if (!b || !m || b.over || b.phase !== 'fighting') return;
+
+    const enemy = b.enemy;
+    const rangedPick = resolveFocusedMove(enemy.moves || [], b.range);
+    const activeEnemyMove = rangedPick && enemy.guts >= rangedPick.gutsCost
+      ? rangedPick
+      : (enemy.guts >= 24 ? { name: '体当たり', statType: 'pow', gutsCost: 24, power: 36, hitBonus: 3, gutsDrain: 4, knockback: 0, fxType: 'slam', sfxType: 'slam' } : null);
+
+    if (activeEnemyMove) {
+      enemy.guts = Math.max(0, enemy.guts - activeEnemyMove.gutsCost);
+      enemy.animMood = 'attack';
+      enemy.animTimer = 24;
+      sfx.playMoveSfx(activeEnemyMove.sfxType || activeEnemyMove.fxType || 'slam');
+
+      const hitChance = Math.max(25, Math.min(96, 68 + (activeEnemyMove.hitBonus || 0) + (enemy.hit - m.spd) * 0.32));
+      if (Math.random() * 100 > hitChance) {
+        spawnBattleFx('sonic', 'player', `${activeEnemyMove.name} 回避!`);
+        pushLog(`${enemy.name} の【${activeEnemyMove.name}】をかわした！`);
+        renderBattleControls();
+        return;
+      }
+
+      const isIntMove = activeEnemyMove.statType === 'int';
+      const atkVal = isIntMove ? enemy.intStat : enemy.pow;
+      const defFactor = isIntMove ? (m.def * 0.16 + m.spd * 0.12) : (m.def * 0.34);
+      const baseDmg = Math.max(6, Math.round(((activeEnemyMove.power || 32) + atkVal * 0.45 - defFactor)));
+      const dokonjo = b.battleHp <= b.battleMaxHp * 0.25 ? 0.78 : 1.0;
+      const dmg = Math.max(4, Math.round(baseDmg * dokonjo));
+      b.battleHp = Math.max(0, b.battleHp - dmg);
+
+      if ((activeEnemyMove.gutsDrain || 0) > 0) {
+        b.guts = Math.max(0, b.guts - Math.min(10, Math.round(activeEnemyMove.gutsDrain * 0.6)));
+      }
+      if ((activeEnemyMove.knockback || 0) > 0 && b.range < 4) {
+        b.range = Math.min(4, b.range + activeEnemyMove.knockback);
+      }
+
+      m.animMood = 'hit';
+      m.animTimer = 24;
+      spawnBattleFx(activeEnemyMove.fxType || 'slam', 'player', `${activeEnemyMove.name} -${dmg}`);
+      pushLog(`${enemy.name} の【${activeEnemyMove.name}】（${statTypeLabel(activeEnemyMove.statType)}）！${m.name} に ${dmg} ダメージ！`);
+      renderBattleControls();
+      if (b.battleHp <= 0) {
+        enterDefeatOrGiveup(false);
+      }
+    }
+  }
+
+  function surrenderBattle() {
+    if (!state.battle || state.battle.over) return;
+    sfx.sfxBack();
+    pushLog('ギブアップ宣言！安全のため牧場へ戻ります。');
+    enterDefeatOrGiveup(true);
+  }
+
+  function enterVictoryPose() {
+    const b = state.battle;
+    const m = state.monster;
+    if (!b || !m) return;
+    b.over = true;
+    b.resultWon = true;
+    b.phase = 'victory_player';
+    b.phaseStart = performance.now();
+    m.animMood = 'happy';
+    m.animTimer = 999;
+    sfx.sfxWin();
+    pushLog(`🏆 ${m.name} の勝利！カメラが勝者へフォーカス！`);
+    renderBattleControls();
+  }
+
+  function enterDefeatOrGiveup(byGiveup) {
+    const b = state.battle;
+    const m = state.monster;
+    if (!b || !m) return;
+    b.over = true;
+    b.resultWon = false;
+    b.phase = 'defeat_or_giveup';
+    b.phaseStart = performance.now();
+    m.animMood = 'sulky';
+    m.animTimer = 999;
+    renderBattleControls();
+    if (!byGiveup) {
+      pushLog(`${m.name} のHPが0になりました……`);
+    }
+  }
+
+  function finalizeBattleOutcome(won) {
+    const m = state.monster;
+    state.battle = null;
+    if (!m) {
+      goScreen('ranch');
+      return;
+    }
+    if (won) {
+      const prize = 1200 + state.rankIdx * 800;
+      state.gold += prize;
+      if (state.rankIdx < RANKS.length - 1) state.rankIdx++;
+      goScreen('ranch');
+      showDialogue([
+        { who: 'holly', mood: '大喜び！', text: `勝利おめでとう！！賞金+${prize}G、ランクは【${RANKS[state.rankIdx]}ランク】になったよ！` }
+      ], '🏆 大会勝利');
+    } else {
+      m.hp = Math.max(1, Math.round(m.maxHp * 0.5));
+      m.fatigue = Math.min(100, m.fatigue + 18);
+      goScreen('ranch');
+      showDialogue([
+        { who: 'colt', mood: '労い', text: `${m.name}を牧場へ連れ戻しました。しっかり休養とエサでケアしましょう。` }
+      ], '牧場帰還');
+    }
+  }
+
+  function battleLoop(now = 0) {
+    if (state.screen !== 'battle' || !state.battle) return;
+    const b = state.battle;
+    const m = state.monster;
+    const dtSec = (now - b.phaseStart) / 1000;
+
+    // Timed battle phases: intro_player -> intro_enemy -> countdown -> fighting / victory_player / defeat_or_giveup
+    if (b.phase === 'intro_player') {
+      m.animMood = 'happy';
+      m.animTimer = 999;
+      if (dtSec >= 1.4) {
+        b.phase = 'intro_enemy';
+        b.phaseStart = now;
+        m.animMood = 'idle';
+        b.enemy.animMood = 'attack';
+        b.enemy.animTimer = 999;
+        sfx.sfxPose();
+      }
+    } else if (b.phase === 'intro_enemy') {
+      if (dtSec >= 1.4) {
+        b.phase = 'countdown';
+        b.phaseStart = now;
+        b.lastTickNum = 99;
+        b.enemy.animMood = 'idle';
+      }
+    } else if (b.phase === 'countdown') {
+      // 0.0-0.55s: "3", 0.55-1.1s: "2", 1.1-1.65s: "1", 1.65s+: "FIGHT!"
+      let callNum = 3;
+      if (dtSec >= 1.65) callNum = 0;
+      else if (dtSec >= 1.1) callNum = 1;
+      else if (dtSec >= 0.55) callNum = 2;
+
+      if (callNum !== b.lastTickNum) {
+        b.lastTickNum = callNum;
+        if (callNum > 0) sfx.sfxTick(false);
+        else sfx.sfxTick(true);
+      }
+
+      if (dtSec >= 2.15) {
+        b.phase = 'fighting';
+        b.phaseStart = now;
+        pushLog('🔥 ファイト！技と距離で攻め込め！');
+        renderBattleControls();
+      }
+    } else if (b.phase === 'fighting' && !b.over) {
+      // Periodically shift opponent's autonomous movement intent even while player holds position
+      if (now >= b.nextIntentAt) {
+        b.enemyIntent = chooseEnemyIntent(b);
+        b.nextIntentAt = now + 950 + Math.random() * 600;
+        const autoDelta = b.enemyIntent === 'advance' ? -1 : (b.enemyIntent === 'retreat' ? 1 : 0);
+        if (autoDelta !== 0) {
+          const prevR = b.range;
+          b.range = Math.max(1, Math.min(4, b.range + autoDelta));
+          b.enemyMoveAnim = { dir: autoDelta, start: now };
+          if (b.range !== prevR) {
+            b.moveCallout = {
+              text: b.enemyIntent === 'advance' ? '相手が自ら接近！' : '相手が自ら後退！',
+              subText: `距離 ${prevR} → ${b.range}`,
+              start: now
+            };
+            pushLog(`${b.enemy.name} が${b.enemyIntent === 'advance' ? '接近' : '後退'}！現在距離【${b.range}】`);
+          }
+          renderBattleControls();
+        }
+      }
+
+      // Guts regeneration reduced to 1/10 of previous rate
+      b.guts = Math.min(100, b.guts + (0.36 + (m.spd || 50) * 0.0025) * 0.1);
+      b.enemy.guts = Math.min(100, b.enemy.guts + (0.28 + (b.enemy.spd || 50) * 0.002) * 0.1);
+      if (b.enemy.guts >= 32 && Math.random() < 0.032) {
+        enemyAct();
+      }
+      document.getElementById('b-guts-txt').textContent = `ガッツ: ${Math.floor(b.guts)}/100`;
+      document.getElementById('b-guts-bar').style.width = `${Math.min(100, b.guts)}%`;
+      renderBattleControls();
+    } else if (b.phase === 'victory_player') {
+      if (dtSec >= 2.35) {
+        finalizeBattleOutcome(true);
+        return;
+      }
+    } else if (b.phase === 'defeat_or_giveup') {
+      if (dtSec >= 1.95) {
+        finalizeBattleOutcome(false);
+        return;
+      }
+    }
+
+    if (m.animTimer > 0 && b.phase !== 'victory_player' && b.phase !== 'intro_player') {
+      m.animTimer--;
+      if (m.animTimer === 0) m.animMood = 'idle';
+    }
+    if (b.enemy.animTimer > 0 && b.phase !== 'intro_enemy') {
+      b.enemy.animTimer--;
+      if (b.enemy.animTimer === 0) b.enemy.animMood = 'idle';
+    }
+
+    const { ctx, w, h } = prepareCanvas(document.getElementById('battle-canvas'));
+    if (ctx) {
+      const bg = ctx.createLinearGradient(0, 0, 0, h);
+      bg.addColorStop(0, '#1e1b4b');
+      bg.addColorStop(0.58, '#312e81');
+      bg.addColorStop(0.59, '#3f6212');
+      bg.addColorStop(1, '#1a2e05');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.fillStyle = '#fef08a';
+      ctx.font = `bold ${Math.max(10.5, Math.round(w * 0.029))}px sans-serif`;
+      ctx.fillText(`⚔ 距離 [1:超近] [2:近] [3:中] [4:遠] → 現在 [${b.range}]`, 10, 18);
+
+      const baseSc = Math.max(1.25, Math.min(1.9, h / 118));
+      const spread = (b.range - 1) * (w * 0.042);
+      let lx = Math.max(w * 0.16, w * 0.30 - spread);
+      let rx = Math.min(w * 0.84, w * 0.70 + spread);
+      let lSc = baseSc;
+      let rSc = baseSc;
+
+      // Short step/lunge offset + afterimage trail when either monster moves
+      const pAge = b.playerMoveAnim && b.playerMoveAnim.dir ? (now - b.playerMoveAnim.start) / 280 : 1;
+      if (pAge >= 0 && pAge < 1) {
+        const pulse = Math.sin(pAge * Math.PI);
+        const stepPx = b.playerMoveAnim.dir * pulse * 18;
+        ctx.save();
+        ctx.globalAlpha = 0.28 * (1 - pAge);
+        drawMonsterSprite(ctx, m, lx - b.playerMoveAnim.dir * 14, h * 0.65, lSc, false, now);
+        ctx.restore();
+        lx += stepPx;
+      }
+
+      const eAge = b.enemyMoveAnim && b.enemyMoveAnim.dir ? (now - b.enemyMoveAnim.start) / 280 : 1;
+      if (eAge >= 0 && eAge < 1) {
+        const pulse = Math.sin(eAge * Math.PI);
+        const stepPx = b.enemyMoveAnim.dir * pulse * 18;
+        ctx.save();
+        ctx.globalAlpha = 0.28 * (1 - eAge);
+        drawMonsterSprite(ctx, b.enemy, rx - b.enemyMoveAnim.dir * 14, h * 0.65, rSc, true, now);
+        ctx.restore();
+        rx += stepPx;
+      }
+
+      // Camera focus zoom & framing for intro / victory poses
+      if (b.phase === 'intro_player') {
+        lx = w * 0.44;
+        rx = w * 0.86;
+        lSc = baseSc * 1.45;
+        rSc = baseSc * 0.85;
+      } else if (b.phase === 'intro_enemy') {
+        lx = w * 0.14;
+        rx = w * 0.56;
+        lSc = baseSc * 0.85;
+        rSc = baseSc * 1.45;
+      } else if (b.phase === 'victory_player') {
+        lx = w * 0.46;
+        rx = w * 0.88;
+        lSc = baseSc * 1.5;
+        rSc = baseSc * 0.8;
+      }
+
+      drawMonsterSprite(ctx, m, lx, h * 0.65, lSc, false, now);
+      drawMonsterSprite(ctx, b.enemy, rx, h * 0.65, rSc, true, now);
+
+      // Clear intent badges above both monsters during fighting
+      if (b.phase === 'fighting' && !b.over) {
+        const eArrow = b.enemyIntent === 'advance' ? '← 接近中' : (b.enemyIntent === 'retreat' ? '後退中 →' : '・様子見');
+        const eCol = b.enemyIntent === 'advance' ? '#fda4af' : (b.enemyIntent === 'retreat' ? '#93c5fd' : '#e2e8f0');
+        ctx.save();
+        ctx.font = `bold ${Math.max(10, Math.round(w * 0.026))}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+        ctx.fillRect(rx - 44, h * 0.26, 88, 20);
+        ctx.fillStyle = eCol;
+        ctx.fillText(eArrow, rx, h * 0.26 + 14);
+
+        if (b.moveCallout) {
+          const cAge = (now - b.moveCallout.start) / 1150;
+          if (cAge < 1) {
+            ctx.globalAlpha = Math.min(1, (1 - cAge) * 1.5);
+            const boxW = Math.min(w * 0.88, 310);
+            const boxX = (w - boxW) * 0.5;
+            const boxY = h * 0.39 - cAge * 10;
+            ctx.fillStyle = 'rgba(9, 15, 28, 0.86)';
+            ctx.strokeStyle = 'rgba(246, 196, 83, 0.8)';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.roundRect(boxX, boxY, boxW, 34, 6);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#fef08a';
+            ctx.font = `bold ${Math.max(10.5, Math.round(w * 0.028))}px sans-serif`;
+            ctx.fillText(b.moveCallout.text, w * 0.5, boxY + 14);
+            ctx.fillStyle = '#67e8f9';
+            ctx.font = `bold ${Math.max(9.5, Math.round(w * 0.024))}px sans-serif`;
+            ctx.fillText(b.moveCallout.subText, w * 0.5, boxY + 28);
+          } else {
+            b.moveCallout = null;
+          }
+        }
+        ctx.restore();
+      }
+
+      // Phase callout banners on canvas
+      ctx.save();
+      ctx.textAlign = 'center';
+      if (b.phase === 'intro_player') {
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+        ctx.fillRect(w * 0.1, h * 0.16, w * 0.8, 30);
+        ctx.fillStyle = '#fef08a';
+        ctx.font = `bold ${Math.max(12, Math.round(w * 0.036))}px sans-serif`;
+        ctx.fillText(`★ ${m.name} 戦闘開始ポージング！`, w * 0.5, h * 0.16 + 20);
+      } else if (b.phase === 'intro_enemy') {
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+        ctx.fillRect(w * 0.1, h * 0.16, w * 0.8, 30);
+        ctx.fillStyle = '#fda4af';
+        ctx.font = `bold ${Math.max(12, Math.round(w * 0.036))}px sans-serif`;
+        ctx.fillText(`🔥 ${b.enemy.name} 登場ポージング！`, w * 0.5, h * 0.16 + 20);
+      } else if (b.phase === 'countdown') {
+        const label = b.lastTickNum > 0 ? String(b.lastTickNum) : 'FIGHT!';
+        ctx.fillStyle = '#fef08a';
+        ctx.strokeStyle = '#090d16';
+        ctx.lineWidth = 4;
+        ctx.font = `900 ${Math.max(24, Math.round(w * 0.085))}px sans-serif`;
+        ctx.strokeText(label, w * 0.5, h * 0.34);
+        ctx.fillText(label, w * 0.5, h * 0.34);
+      } else if (b.phase === 'victory_player') {
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+        ctx.fillRect(w * 0.1, h * 0.15, w * 0.8, 32);
+        ctx.fillStyle = '#fde047';
+        ctx.font = `900 ${Math.max(13, Math.round(w * 0.038))}px sans-serif`;
+        ctx.fillText(`🏆 VICTORY！${m.name} 勝利ポージング！`, w * 0.5, h * 0.15 + 21);
+      }
+      ctx.restore();
+
+      if (b.fx) {
+        b.fx.p += 0.065;
+        const p = b.fx.p;
+        const fxX = b.fx.side === 'enemy' ? rx : lx;
+        const fromX = b.fx.side === 'enemy' ? lx : rx;
+        const fxY = h * 0.60;
+        ctx.save();
+        const k = b.fx.kind;
+        if (k === 'beam') {
+          const grad = ctx.createLinearGradient(fromX, fxY, fxX, fxY);
+          grad.addColorStop(0, `rgba(56, 189, 248, ${Math.max(0, 0.85 - p * 0.7)})`);
+          grad.addColorStop(1, `rgba(254, 240, 138, ${Math.max(0, 0.95 - p * 0.8)})`);
+          ctx.strokeStyle = grad;
+          ctx.lineWidth = Math.max(2, (1 - p) * 14);
+          ctx.beginPath();
+          ctx.moveTo(fromX, fxY);
+          ctx.lineTo(fxX, fxY);
+          ctx.stroke();
+        } else if (k === 'sonic' || k === 'howl') {
+          ctx.strokeStyle = k === 'howl'
+            ? `rgba(244, 114, 182, ${Math.max(0, 1 - p)})`
+            : `rgba(125, 211, 252, ${Math.max(0, 1 - p)})`;
+          ctx.lineWidth = 3;
+          for (let wIdx = 0; wIdx < 3; wIdx++) {
+            const rad = 10 + p * 38 + wIdx * 9;
+            ctx.beginPath();
+            ctx.arc(fxX, fxY, rad, -0.65, 0.65);
+            ctx.stroke();
+          }
+        } else if (k === 'burst') {
+          ctx.strokeStyle = `rgba(192, 132, 252, ${Math.max(0, 1 - p)})`;
+          ctx.lineWidth = 3;
+          for (let ray = 0; ray < 8; ray++) {
+            const ang = (Math.PI * 2 * ray) / 8 + p * 2.4;
+            ctx.beginPath();
+            ctx.moveTo(fxX + Math.cos(ang) * 8, fxY + Math.sin(ang) * 8);
+            ctx.lineTo(fxX + Math.cos(ang) * (18 + p * 36), fxY + Math.sin(ang) * (18 + p * 36));
+            ctx.stroke();
+          }
+        } else if (k === 'crush') {
+          ctx.strokeStyle = `rgba(239, 68, 68, ${Math.max(0, 1 - p)})`;
+          ctx.lineWidth = 5;
+          ctx.strokeRect(fxX - 14 - p * 18, fxY - 14 - p * 18, 28 + p * 36, 28 + p * 36);
+        } else if (k === 'shock') {
+          ctx.strokeStyle = `rgba(250, 204, 21, ${Math.max(0, 1 - p)})`;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.arc(fxX, fxY, 12 + p * 36, 0, Math.PI * 2);
+          ctx.stroke();
+        } else if (k === 'slash' || k === 'claw') {
+          ctx.strokeStyle = `rgba(254, 240, 138, ${Math.max(0, 1 - p)})`;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.arc(fxX, fxY, 16 + p * 26, -0.9, 0.9);
+          ctx.stroke();
+          if (k === 'claw') {
+            ctx.beginPath();
+            ctx.arc(fxX - 5, fxY + 6, 14 + p * 22, -0.8, 0.8);
+            ctx.stroke();
+          }
+        } else {
+          ctx.strokeStyle = `rgba(251, 146, 60, ${Math.max(0, 1 - p)})`;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.arc(fxX, fxY, 10 + p * 34, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${Math.max(12, Math.round(w * 0.035))}px sans-serif`;
+        ctx.fillText(b.fx.label, Math.max(10, fxX - 36), Math.max(24, fxY - 24 - p * 16));
+        ctx.restore();
+        if (b.fx.p >= 1) b.fx = null;
+      }
+    }
+
+    requestAnimationFrame(battleLoop);
+  }
+
+  /* =========================================================
+     9. SYSTEM / SAVE / DELETE & CONTEXT-SAFE INPUTS
+     ========================================================= */
+  function refreshSystemUI() {
+    const exists = !!localStorage.getItem(STORAGE_KEY);
+    document.getElementById('sys-status-card').innerHTML = `
+      <div style="font-weight:900;color:var(--gold);margin-bottom:4px;">セーブデータ状態</div>
+      <div>保存スロット：<b>${exists ? 'セーブデータあり' : 'データなし'}</b></div>
+      <div style="opacity:0.88;color:var(--muted);">現在の進行：${state.year}年目 ${state.month}月 ${state.week}週（冬眠${state.frozenMonsters.length}体 / ${RANKS[state.rankIdx]}ランク / ${state.gold}G）</div>
+    `;
+  }
+
+  window.__mf2NextDialogue = nextDialogue;
+  window.__mf2StartRanch = startNewGame;
+  window.__mf2Load = () => { sfx.unlock(); loadGame(); };
+  window.__mf2Pet = petMonster;
+  window.__mf2Praise = praiseMonster;
+  window.__mf2Scold = scoldMonster;
+  window.__mf2Shrine = () => { sfx.unlock(); goScreen('birth'); };
+  window.__mf2BackToRanch = () => { sfx.sfxBack(); goScreen('ranch'); };
+  window.__mf2SkipCeremony = () => finishBirthCeremony(true);
+  window.__mf2FinishCeremony = () => finishBirthCeremony(false);
+  window.__mf2RandCode = () => {
+    let r = '';
+    for (let i = 0; i < 8; i++) r += Math.floor(Math.random() * 10);
+    state.birthCode = r;
+    sfx.sfxTap();
+    refreshBirthUI();
+  };
+  window.__mf2Summon = summonMonster;
+  window.__mf2Retreat = () => adjustRange(1);
+  window.__mf2Advance = () => adjustRange(-1);
+  window.__mf2Surrender = surrenderBattle;
+
+  document.getElementById('btn-new-game').onclick = startNewGame;
+  document.getElementById('btn-title-load').onclick = () => { sfx.unlock(); loadGame(); };
+  document.getElementById('btn-title-save-mgr').onclick = () => { sfx.unlock(); goScreen('system'); };
+  document.getElementById('btn-audio').onclick = (e) => {
+    const on = sfx.toggle();
+    e.target.textContent = on ? '🔊 ON' : '🔇 OFF';
+  };
+
+  document.querySelectorAll('.num-btn').forEach((btn) => {
+    btn.onclick = () => appendDigit(btn.dataset.digit);
+  });
+  document.getElementById('btn-digit-del').onclick = () => {
+    state.birthCode = state.birthCode.slice(0, -1) || '0';
+    sfx.sfxBack();
+    refreshBirthUI();
+  };
+  document.getElementById('btn-digit-clear').onclick = () => {
+    state.birthCode = '';
+    sfx.sfxBack();
+    refreshBirthUI();
+  };
+  document.getElementById('btn-digit-rand').onclick = window.__mf2RandCode;
+  document.getElementById('btn-summon-monster').onclick = summonMonster;
+  document.getElementById('btn-birth-back').onclick = window.__mf2BackToRanch;
+
+  document.getElementById('btn-ceremony-skip').onclick = () => finishBirthCeremony(true);
+  document.getElementById('btn-ceremony-enter-ranch').onclick = () => finishBirthCeremony(false);
+
+  document.getElementById('ranch-canvas').onclick = petMonster;
+  document.getElementById('btn-pet').onclick = petMonster;
+  document.getElementById('btn-praise').onclick = praiseMonster;
+  document.getElementById('btn-scold').onclick = scoldMonster;
+  document.getElementById('btn-feed-menu').onclick = openFeedPicker;
+  document.getElementById('btn-rest').onclick = doRest;
+  document.getElementById('btn-shrine').onclick = () => goScreen('birth');
+  document.getElementById('btn-mode-heavy').onclick = () => { state.trainingHeavy = true; sfx.sfxTap(); refreshRanchUI(); };
+  document.getElementById('btn-mode-light').onclick = () => { state.trainingHeavy = false; sfx.sfxTap(); refreshRanchUI(); };
+  document.querySelectorAll('.btn-tr-stat').forEach((btn) => {
+    btn.onclick = () => executeStatTraining(btn.dataset.stat);
+  });
+  document.getElementById('btn-errantry').onclick = openErrantryPicker;
+  document.getElementById('btn-subaction-close').onclick = window.__mf2BackToRanch;
+  document.getElementById('btn-adventure').onclick = doAdventure;
+  document.getElementById('btn-tournament').onclick = startTournamentBattle;
+  document.getElementById('btn-freeze-menu').onclick = openFreezeMenu;
+  document.getElementById('btn-combine-menu').onclick = openCombineMenu;
+  document.getElementById('btn-save-menu').onclick = () => { sfx.sfxTap(); goScreen('system'); };
+
+  document.getElementById('btn-b-retreat').onclick = () => adjustRange(1);
+  document.getElementById('btn-b-advance').onclick = () => adjustRange(-1);
+  document.getElementById('btn-b-surrender').onclick = surrenderBattle;
+
+  document.getElementById('btn-sys-close').onclick = window.__mf2BackToRanch;
+  document.getElementById('btn-do-save').onclick = () => {
+    saveGame();
+    sfx.sfxTap();
+    showToast('セーブしました！');
+    refreshSystemUI();
+  };
+  document.getElementById('btn-do-load').onclick = () => loadGame();
+  document.getElementById('btn-do-delete').onclick = () => {
+    deleteGame();
+    refreshSystemUI();
+  };
+
+  document.getElementById('vn-box').onclick = nextDialogue;
+
+  window.addEventListener('keydown', (e) => {
+    if (state.dialogue.length > 0) {
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        nextDialogue();
+      }
+      return;
+    }
+
+    const k = e.key.toLowerCase();
+
+    if (state.screen === 'title') {
+      if (k === 'enter') {
+        e.preventDefault();
+        startNewGame();
+      }
+      return;
+    }
+
+    if (state.screen === 'ceremony') {
+      if (k === ' ' || k === 'enter') {
+        e.preventDefault();
+        finishBirthCeremony(false);
+      } else if (k === 'escape') {
+        finishBirthCeremony(true);
+      }
+      return;
+    }
+
+    if (state.screen === 'birth') {
+      if (/^[0-9]$/.test(k)) {
+        appendDigit(k);
+      } else if (k === 'enter') {
+        e.preventDefault();
+        summonMonster();
+      } else if (k === 'backspace') {
+        state.birthCode = state.birthCode.slice(0, -1) || '0';
+        sfx.sfxBack();
+        refreshBirthUI();
+      } else if (k === 'escape') {
+        window.__mf2BackToRanch();
+      }
+      return;
+    }
+
+    if (state.screen === 'ranch') {
+      if (k === 'c') petMonster();
+      else if (k === 'escape') goScreen('system');
+      return;
+    }
+
+    if (state.screen === 'battle' && state.battle && !state.battle.over && state.battle.phase === 'fighting') {
+      if (k === 'a') adjustRange(1);
+      else if (k === 'd') adjustRange(-1);
+      else if (k === 'enter') {
+        e.preventDefault();
+        triggerFocusedMove();
+      }
+      return;
+    }
+
+    if (k === 'escape') {
+      window.__mf2BackToRanch();
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    if (state.screen === 'title') renderTitleShowcase();
+    if (state.screen === 'birth') refreshBirthUI();
+  });
+
+  updateTopHud();
+  syncContextBarAndLegend('title');
+  requestAnimationFrame(() => {
+    renderTitleShowcase();
+    requestAnimationFrame(renderRanchLoop);
+  });
+})();
+</script>
+</body>
+</html>
